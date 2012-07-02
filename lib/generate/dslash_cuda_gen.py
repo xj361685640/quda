@@ -1028,14 +1028,15 @@ def epilog():
     if arch==300:
         for d in range(1,8):
             str += "if (threadIdx.y == " + `d` + ") { "
+            if d != 1: str += "threadfence_block();\n"
             str += "WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }\n"
             str += "__syncthreads();\n"
             str += "if (threadIdx.y == 0) { "
             str += "  READ_SPINOR_SHARED(threadIdx.x, 0, 0)\n"
             for s in range(0,4):
                 for c in range(0,3):
-                    str += out_re(s,c) +" += "+in_re(s,c)+";\n"
-                    str += out_im(s,c) +" += "+in_im(s,c)+";\n"
+                    str += "  " + out_re(s,c) +" += "+in_re(s,c)+";\n"
+                    str += "  " + out_im(s,c) +" += "+in_im(s,c)+";\n"
             str += "}\n"
             str += "\n"
             
