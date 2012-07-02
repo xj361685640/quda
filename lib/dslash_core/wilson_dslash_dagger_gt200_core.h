@@ -2139,6 +2139,7 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[3] || x4>0)) ||
   }
 }
 
+
 #if defined MULTI_GPU && (defined DSLASH_XPAY || defined DSLASH_CLOVER)
 
 int incomplete = 0; // Have all 8 contributions been computed for this site?
@@ -2606,7 +2607,6 @@ if (!incomplete)
   o32_im = a*o32_im+acc32_im;
 #endif // DSLASH_XPAY
 }
-
 // write spinor field back to device memory
 WRITE_SPINOR(sp_stride);
 

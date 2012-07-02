@@ -1,6 +1,6 @@
 // *** CUDA DSLASH DAGGER ***
 
-#define DSLASH_SHARED_FLOATS_PER_THREAD 19
+#define DSLASH_SHARED_FLOATS_PER_THREAD 24
 
 
 #if ((CUDA_VERSION >= 4010) && (__COMPUTE_CAPABILITY__ >= 200)) // NVVM compiler
@@ -11,6 +11,8 @@
 // input spinor
 #ifdef SPINOR_DOUBLE
 #define spinorFloat double
+#define WRITE_SPINOR_SHARED WRITE_SPINOR_SHARED_DOUBLE2
+#define READ_SPINOR_SHARED READ_SPINOR_SHARED_DOUBLE2
 #define i00_re I0.x
 #define i00_im I0.y
 #define i01_re I1.x
@@ -61,6 +63,8 @@
 #define acc32_im accum11.y
 #else
 #define spinorFloat float
+#define WRITE_SPINOR_SHARED WRITE_SPINOR_SHARED_FLOAT4
+#define READ_SPINOR_SHARED READ_SPINOR_SHARED_FLOAT4
 #define i00_re I0.x
 #define i00_im I0.y
 #define i01_re I0.z
@@ -181,25 +185,25 @@
 #define gT22_im (-g22_im)
 
 // output spinor
-#define o00_re s[0*SHARED_STRIDE]
-#define o00_im s[1*SHARED_STRIDE]
-#define o01_re s[2*SHARED_STRIDE]
-#define o01_im s[3*SHARED_STRIDE]
-#define o02_re s[4*SHARED_STRIDE]
-#define o02_im s[5*SHARED_STRIDE]
-#define o10_re s[6*SHARED_STRIDE]
-#define o10_im s[7*SHARED_STRIDE]
-#define o11_re s[8*SHARED_STRIDE]
-#define o11_im s[9*SHARED_STRIDE]
-#define o12_re s[10*SHARED_STRIDE]
-#define o12_im s[11*SHARED_STRIDE]
-#define o20_re s[12*SHARED_STRIDE]
-#define o20_im s[13*SHARED_STRIDE]
-#define o21_re s[14*SHARED_STRIDE]
-#define o21_im s[15*SHARED_STRIDE]
-#define o22_re s[16*SHARED_STRIDE]
-#define o22_im s[17*SHARED_STRIDE]
-#define o30_re s[18*SHARED_STRIDE]
+VOLATILE spinorFloat o00_re;
+VOLATILE spinorFloat o00_im;
+VOLATILE spinorFloat o01_re;
+VOLATILE spinorFloat o01_im;
+VOLATILE spinorFloat o02_re;
+VOLATILE spinorFloat o02_im;
+VOLATILE spinorFloat o10_re;
+VOLATILE spinorFloat o10_im;
+VOLATILE spinorFloat o11_re;
+VOLATILE spinorFloat o11_im;
+VOLATILE spinorFloat o12_re;
+VOLATILE spinorFloat o12_im;
+VOLATILE spinorFloat o20_re;
+VOLATILE spinorFloat o20_im;
+VOLATILE spinorFloat o21_re;
+VOLATILE spinorFloat o21_im;
+VOLATILE spinorFloat o22_re;
+VOLATILE spinorFloat o22_im;
+VOLATILE spinorFloat o30_re;
 VOLATILE spinorFloat o30_im;
 VOLATILE spinorFloat o31_re;
 VOLATILE spinorFloat o31_im;
@@ -207,15 +211,10 @@ VOLATILE spinorFloat o32_re;
 VOLATILE spinorFloat o32_im;
 
 #ifdef SPINOR_DOUBLE
-#define SHARED_STRIDE  8 // to avoid bank conflicts on G80 and GT200
+#define SHARED_STRIDE 16 // to avoid bank conflicts on Fermi
 #else
-#define SHARED_STRIDE 16 // to avoid bank conflicts on G80 and GT200
+#define SHARED_STRIDE 32 // to avoid bank conflicts on Fermi
 #endif
-
-extern __shared__ char s_data[];
-
-VOLATILE spinorFloat *s = (spinorFloat*)s_data + DSLASH_SHARED_FLOATS_PER_THREAD*SHARED_STRIDE*(threadIdx.x/SHARED_STRIDE)
-                                  + (threadIdx.x % SHARED_STRIDE);
 
 #include "read_gauge.h"
 #include "read_clover.h"
@@ -303,6 +302,8 @@ if (kernel_type == INTERIOR_KERNEL) {
 }
 #endif // MULTI_GPU
 
+
+if (threadIdx.y == 0) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[0] || x1<X1m1)) ||
@@ -494,6 +495,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[0] || x1<X1m1)) ||
   o32_im -= A2_re;
   
 }
+}
+else if (threadIdx.y == 1) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[0] || x1>0)) ||
@@ -689,6 +692,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[0] || x1>0)) ||
   o32_im += A2_re;
   
 }
+}
+else if (threadIdx.y == 2) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[1] || x2<X2m1)) ||
@@ -880,6 +885,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[1] || x2<X2m1)) ||
   o32_im += A2_im;
   
 }
+}
+else if (threadIdx.y == 3) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[1] || x2>0)) ||
@@ -1075,6 +1082,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[1] || x2>0)) ||
   o32_im -= A2_im;
   
 }
+}
+else if (threadIdx.y == 4) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[2] || x3<X3m1)) ||
@@ -1266,6 +1275,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[2] || x3<X3m1)) ||
   o32_im += B2_re;
   
 }
+}
+else if (threadIdx.y == 5) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[2] || x3>0)) ||
@@ -1461,6 +1472,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[2] || x3>0)) ||
   o32_im -= B2_re;
   
 }
+}
+else if (threadIdx.y == 6) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[3] || x4<X4m1)) ||
@@ -1715,6 +1728,8 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[3] || x4<X4m1)) ||
     
   }
 }
+}
+else if (threadIdx.y == 7) {
 
 #ifdef MULTI_GPU
 if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[3] || x4>0)) ||
@@ -1973,7 +1988,212 @@ if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim[3] || x4>0)) ||
     
   }
 }
+}
 
+if (threadIdx.y == 1) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 2) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 3) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 4) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 5) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 6) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 7) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
+o00_re += i00_re;
+o00_im += i00_im;
+o01_re += i01_re;
+o01_im += i01_im;
+o02_re += i02_re;
+o02_im += i02_im;
+o10_re += i10_re;
+o10_im += i10_im;
+o11_re += i11_re;
+o11_im += i11_im;
+o12_re += i12_re;
+o12_im += i12_im;
+o20_re += i20_re;
+o20_im += i20_im;
+o21_re += i21_re;
+o21_im += i21_im;
+o22_re += i22_re;
+o22_im += i22_im;
+o30_re += i30_re;
+o30_im += i30_im;
+o31_re += i31_re;
+o31_im += i31_im;
+o32_re += i32_re;
+o32_im += i32_im;
+}
+
+if (threadIdx.y == 0) { // only threadIdx.y = 0 does the epilog 
 
 #ifdef MULTI_GPU
 
@@ -2111,8 +2331,13 @@ if (!incomplete)
 // write spinor field back to device memory
 WRITE_SPINOR(sp_stride);
 
+
+} // end of threadIdx.y = 0 epilog 
+
 // undefine to prevent warning when precision is changed
 #undef spinorFloat
+#undef WRITE_SPINOR_SHARED
+#undef READ_SPINOR_SHARED
 #undef SHARED_STRIDE
 
 #undef A_re
@@ -2207,5 +2432,10 @@ WRITE_SPINOR(sp_stride);
 #undef o22_re
 #undef o22_im
 #undef o30_re
+#undef o30_im
+#undef o31_re
+#undef o31_im
+#undef o32_re
+#undef o32_im
 
 #undef VOLATILE

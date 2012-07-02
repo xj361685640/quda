@@ -144,7 +144,7 @@ def def_input_spinor():
     str += "// input spinor\n"
     str += "#ifdef SPINOR_DOUBLE\n"
     str += "#define spinorFloat double\n"
-    if sharedDslash: 
+    if sharedDslash or arch == 300: 
         str += "#define WRITE_SPINOR_SHARED WRITE_SPINOR_SHARED_DOUBLE2\n"
         str += "#define READ_SPINOR_SHARED READ_SPINOR_SHARED_DOUBLE2\n"
 
@@ -161,7 +161,7 @@ def def_input_spinor():
                 str += "#define "+acc_im(s,c)+" accum"+nthFloat2(2*i+1)+"\n"
     str += "#else\n"
     str += "#define spinorFloat float\n"
-    if sharedDslash: 
+    if sharedDslash or arch == 300: 
         str += "#define WRITE_SPINOR_SHARED WRITE_SPINOR_SHARED_FLOAT4\n"
         str += "#define READ_SPINOR_SHARED READ_SPINOR_SHARED_FLOAT4\n"
     for s in range(0,4):
@@ -286,11 +286,11 @@ def def_output_spinor():
     for s in range(0,4):
         for c in range(0,3):
             i = 3*s+c
-            if 2*i < sharedFloats and not sharedDslash:
+            if 2*i < sharedFloats and not sharedDslash and not arch==300:
                 str += "#define "+out_re(s,c)+" s["+`(2*i+0)`+"*SHARED_STRIDE]\n"
             else:
                 str += "VOLATILE spinorFloat "+out_re(s,c)+";\n"
-            if 2*i+1 < sharedFloats and not sharedDslash:
+            if 2*i+1 < sharedFloats and not sharedDslash and not arch==300:
                 str += "#define "+out_im(s,c)+" s["+`(2*i+1)`+"*SHARED_STRIDE]\n"
             else:
                 str += "VOLATILE spinorFloat "+out_im(s,c)+";\n"
@@ -347,7 +347,7 @@ def prolog():
 
 
     # set the pointer if using shared memory for pseudo registers
-    if sharedFloats > 0 and not sharedDslash: 
+    if sharedFloats > 0 and not sharedDslash and not arch == 300: 
         prolog_str += (
 """
 extern __shared__ char s_data[];
@@ -527,6 +527,11 @@ def gen(dir, pack_only=False):
                    "X-X4X3X2X1mX3X2X1", "X+X4X3X2X1mX3X2X1"]
 
     cond = ""
+
+    if arch==300:
+        if dir==0: cond += "if (threadIdx.y == " + `dir` +") {\n\n"
+        else: cond += "else if (threadIdx.y == " + `dir` +") {\n\n"
+        
     cond += "#ifdef MULTI_GPU\n"
     cond += "if ( (kernel_type == INTERIOR_KERNEL && (!param.ghostDim["+`dir/2`+"] || "+interior[dir]+")) ||\n"
     cond += "     (kernel_type == EXTERIOR_KERNEL_"+dim[dir/2]+" && "+boundary[dir]+") )\n"
@@ -816,7 +821,8 @@ READ_SPINOR_SHARED(tx, threadIdx.y, tz);\n
         out = out.replace("sp_idx", "idx")
         return out
     else:
-        return cond + block(str)+"\n\n"
+        if arch==300: return cond + block(str)+"\n}\n"
+        else: return cond + block(str)+"\n\n"
 # end def gen
 
 
@@ -1017,7 +1023,24 @@ def xpay():
 
 
 def epilog():
-    str = ""
+    
+    str = "\n"
+    if arch==300:
+        for d in range(1,8):
+            str += "if (threadIdx.y == " + `d` + ") { "
+            str += "WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }\n"
+            str += "__syncthreads();\n"
+            str += "if (threadIdx.y == 0) { "
+            str += "  READ_SPINOR_SHARED(threadIdx.x, 0, 0)\n"
+            for s in range(0,4):
+                for c in range(0,3):
+                    str += out_re(s,c) +" += "+in_re(s,c)+";\n"
+                    str += out_im(s,c) +" += "+in_im(s,c)+";\n"
+            str += "}\n"
+            str += "\n"
+            
+        str += "if (threadIdx.y == 0) { // only threadIdx.y = 0 does the epilog \n\n"
+
     if dslash and not asymClover:
         if twist:
             str += "#ifdef MULTI_GPU\n"
@@ -1052,13 +1075,16 @@ case EXTERIOR_KERNEL_Y:
 
         str += block( block_str )
     
-    str += "\n\n"
+    str += "\n"
     str += "// write spinor field back to device memory\n"
     str += "WRITE_SPINOR(sp_stride);\n\n"
 
+    if arch == 300:
+        str += "\n} // end of threadIdx.y = 0 epilog \n\n"
+
     str += "// undefine to prevent warning when precision is changed\n"
     str += "#undef spinorFloat\n"
-    if sharedDslash: 
+    if sharedDslash or arch == 300: 
         str += "#undef WRITE_SPINOR_SHARED\n"
         str += "#undef READ_SPINOR_SHARED\n"
     if sharedFloats > 0: str += "#undef SHARED_STRIDE\n\n"
@@ -1179,7 +1205,11 @@ def generate_dslash_kernels(arch):
     global asymClover
 
     sharedFloats = 0
-    if arch >= 200:
+    if arch >= 300:
+        sharedFloats = 24
+        sharedDslash = False    
+        name = "kepler"
+    elif arch >= 200:
         sharedFloats = 24
         sharedDslash = True    
         name = "fermi"
@@ -1261,6 +1291,9 @@ sharedDslash = False
 pack = False
 
 # generate dslash kernels
+arch = 300
+generate_dslash_kernels(arch)
+
 arch = 200
 generate_dslash_kernels(arch)
 

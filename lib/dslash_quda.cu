@@ -158,6 +158,11 @@ static inline __device__ float2 short22float2(short2 a) {
 // Enable shared memory dslash for Fermi architecture
 //#define SHARED_WILSON_DSLASH
 //#define SHARED_8_BYTE_WORD_SIZE // 8-byte shared memory access
+#define FINE_GRAINED_DSLASH // parallelize over dimension and direction
+
+#if (defined SHARED_WILSON_DSLASH) && (defined FINE_GRAINED_DSLASH)
+#error "Cannot enable both shared wilson dslash and fine grained dslash"
+#endif
 
 #include <pack_face_def.h>        // kernels for packing the ghost zones and general indexing
 #include <staggered_dslash_def.h> // staggered Dslash kernels
@@ -381,7 +386,11 @@ class DslashCuda : public Tunable {
   bool advanceGridDim(TuneParam &param) const { return false; } // Don't tune the grid dimensions.
   bool advanceBlockDim(TuneParam &param) const {
     bool advance = Tunable::advanceBlockDim(param);
+#ifdef FINE_GRAINED_DSLASH
+    if (advance) param.grid = dim3( (dslashParam.threads+param.block.x-1) / param.block.x, 8, 1);
+#else
     if (advance) param.grid = dim3( (dslashParam.threads+param.block.x-1) / param.block.x, 1, 1);
+#endif
     return advance;
   }
 
@@ -401,6 +410,9 @@ class DslashCuda : public Tunable {
   virtual void initTuneParam(TuneParam &param) const
   {
     Tunable::initTuneParam(param);
+#ifdef FINE_GRAINED_DSLASH
+    param.block.y = 8;
+#endif
     param.grid = dim3( (dslashParam.threads+param.block.x-1) / param.block.x, 1, 1);
   }
 
@@ -408,6 +420,9 @@ class DslashCuda : public Tunable {
   virtual void defaultTuneParam(TuneParam &param) const
   {
     Tunable::defaultTuneParam(param);
+#ifdef FINE_GRAINED_DSLASH
+    param.block.y = 8;
+#endif
     param.grid = dim3( (dslashParam.threads+param.block.x-1) / param.block.x, 1, 1);
   }
 

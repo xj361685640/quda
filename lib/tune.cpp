@@ -249,6 +249,7 @@ TuneParam tuneLaunch(Tunable &tunable, QudaTune enabled, QudaVerbosity verbosity
   if (enabled == QUDA_TUNE_NO) {
     tunable.defaultTuneParam(param);
     tunable.checkLaunchParam(param);
+    printf("%d %d %d %d\n", param.block.x, param.block.y, param.block.z, param.shared_bytes);
   } else if (tunecache.count(key)) {
     param = tunecache[key];
     tunable.checkLaunchParam(param);

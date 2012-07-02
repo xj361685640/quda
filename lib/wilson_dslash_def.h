@@ -398,7 +398,28 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
   // build Wilson or clover as appropriate
 #if ((DD_CLOVER==0 && BUILD_WILSON) || ((DD_CLOVER==1 || DD_CLOVER==2) && BUILD_CLOVER))
 
-#if (__COMPUTE_CAPABILITY__ >= 200 && defined(SHARED_WILSON_DSLASH)) // Fermi optimal code
+#if (defined(FINE_GRAINED_DSLASH)) // Kepler developmental code
+
+#ifdef DSLASH_CLOVER_XPAY
+
+#if DD_DAG
+#include "asym_wilson_clover_dslash_dagger_kepler_core.h"
+#else
+#include "asym_wilson_clover_dslash_kepler_core.h"
+#endif
+
+#else
+
+#if DD_DAG
+#include "wilson_dslash_dagger_kepler_core.h"
+#else
+#include "wilson_dslash_kepler_core.h"
+#endif
+
+#endif
+
+
+#elif (__COMPUTE_CAPABILITY__ >= 200 && defined(SHARED_WILSON_DSLASH)) // Fermi optimal code
 
 #ifdef DSLASH_CLOVER_XPAY
 

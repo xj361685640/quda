@@ -273,6 +273,7 @@ if (sid >= param.threads) return;
 
 // read spinor from device memory
 READ_SPINOR(SPINORTEX, sp_stride, sid, sid);
+
 {
   // change to chiral basis
   {
@@ -719,7 +720,6 @@ READ_SPINOR(SPINORTEX, sp_stride, sid, sid);
   o32_im = a*o32_im+acc32_im;
 #endif // DSLASH_XPAY
 }
-
 // write spinor field back to device memory
 WRITE_SPINOR(sp_stride);
 
