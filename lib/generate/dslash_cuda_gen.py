@@ -1027,8 +1027,8 @@ def epilog():
     str = "\n"
     if arch==300:
         for d in range(1,8):
+            if d != 1: str += "__syncthreads();\n"
             str += "if (threadIdx.y == " + `d` + ") { "
-            if d != 1: str += "threadfence_block();\n"
             str += "WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }\n"
             str += "__syncthreads();\n"
             str += "if (threadIdx.y == 0) { "

@@ -91,7 +91,7 @@ class Tunable {
   virtual bool advanceBlockDim(TuneParam &param) const
   {
     const unsigned int max_threads = deviceProp.maxThreadsDim[0];
-    const unsigned int max_shared = 16384; // FIXME: use deviceProp.sharedMemPerBlock;
+    const unsigned int max_shared = 3*16384; // FIXME: use deviceProp.sharedMemPerBlock;
     const int step = deviceProp.warpSize;
     param.block.x += step;
     if (param.block.x > max_threads || sharedBytesPerThread()*param.block.x > max_shared) {
@@ -112,7 +112,7 @@ class Tunable {
    */
   virtual bool advanceSharedBytes(TuneParam &param) const
   {
-    const int max_shared = 16384; // FIXME: use deviceProp.sharedMemPerBlock;
+    const int max_shared = 3*16384; // FIXME: use deviceProp.sharedMemPerBlock;
     const int max_blocks_per_sm = 8; // FIXME: derive from deviceProp
     int blocks_per_sm = max_shared / (param.shared_bytes ? param.shared_bytes : 1);
     if (blocks_per_sm > max_blocks_per_sm) blocks_per_sm = max_blocks_per_sm;
@@ -120,7 +120,7 @@ class Tunable {
     if (param.shared_bytes > max_shared) {
       TuneParam next(param);
       advanceBlockDim(next); // to get next blockDim
-      int nthreads = next.block.x * next.block.y * next.block.z;
+      int nthreads = next.block.x; // * next.block.y * next.block.z; // comment out since this screws up fine-grained dslash
       param.shared_bytes = sharedBytesPerThread()*nthreads > sharedBytesPerBlock(param) ?
 	sharedBytesPerThread()*nthreads : sharedBytesPerBlock(param);
       return false;

@@ -2643,8 +2643,8 @@ if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o32_im += i32_im;
 }
 
-if (threadIdx.y == 2) { threadfence_block();
-WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 2) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
 __syncthreads();
 if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o00_re += i00_re;
@@ -2673,8 +2673,8 @@ if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o32_im += i32_im;
 }
 
-if (threadIdx.y == 3) { threadfence_block();
-WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 3) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
 __syncthreads();
 if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o00_re += i00_re;
@@ -2703,8 +2703,8 @@ if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o32_im += i32_im;
 }
 
-if (threadIdx.y == 4) { threadfence_block();
-WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 4) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
 __syncthreads();
 if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o00_re += i00_re;
@@ -2733,8 +2733,8 @@ if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o32_im += i32_im;
 }
 
-if (threadIdx.y == 5) { threadfence_block();
-WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 5) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
 __syncthreads();
 if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o00_re += i00_re;
@@ -2763,8 +2763,8 @@ if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o32_im += i32_im;
 }
 
-if (threadIdx.y == 6) { threadfence_block();
-WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 6) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
 __syncthreads();
 if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o00_re += i00_re;
@@ -2793,8 +2793,8 @@ if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o32_im += i32_im;
 }
 
-if (threadIdx.y == 7) { threadfence_block();
-WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
+__syncthreads();
+if (threadIdx.y == 7) { WRITE_SPINOR_SHARED(threadIdx.x, 0, 0, o) }
 __syncthreads();
 if (threadIdx.y == 0) {   READ_SPINOR_SHARED(threadIdx.x, 0, 0)
   o00_re += i00_re;
