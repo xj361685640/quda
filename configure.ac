@@ -17,7 +17,7 @@ AC_ARG_ENABLE(cpu-arch,
 
 dnl Specify GPU Arch
 AC_ARG_ENABLE(gpu-arch,
- AC_HELP_STRING([--enable-gpu-arch=arch], [ Set GPU arch: sm_10, sm_12, sm_13, sm_20, sm_21, sm_30 (default: sm_20)]),
+ AC_HELP_STRING([--enable-gpu-arch=arch], [ Set GPU arch: sm_11, sm_12, sm_13, sm_20, sm_21, sm_30, sm_35 (default: sm_20)]),
  [ gpu_arch=${enableval} ],
  [ gpu_arch="sm_20" ]
 )
@@ -149,8 +149,8 @@ AC_ARG_WITH(mpi,
 
 
 AS_CASE([$build_mpi],
-	[yes], [AC_PROG_CC($mpi_home/bin/mpicc mpicc), AC_PROG_CXX($mpi_home/bin/mpicxx mpicxx CC)],
-	[no], [AC_PROG_CC(gcc cc), AC_PROG_CXX(g++ CC cxx)])
+	[yes], [AC_PROG_CC($mpi_home/bin/mpicc mpicc) AC_PROG_CXX($mpi_home/bin/mpicxx mpicxx CC)],
+	[no], [AC_PROG_CC(gcc cc) AC_PROG_CXX(g++ CC cxx)])
 
 
 AC_ARG_WITH(qmp,
@@ -202,9 +202,9 @@ fi
 
 
 AC_ARG_ENABLE(fermi-double-tex,
- AC_HELP_STRING([--enable-fermi-double-tex], [ Enable double-precision texture reads on Fermi (default: disabled)]),
+ AC_HELP_STRING([--enable-fermi-double-tex], [ Enable double-precision texture reads on Fermi (default: enabled)]),
  [ fermi_double_tex=${enableval}],
- [ fermi_double_tex="no" ]
+ [ fermi_double_tex="yes" ]
 )
 
 AC_ARG_ENABLE(numa-affinity,
@@ -224,9 +224,9 @@ esac
 
 dnl CPU Arch
 case ${gpu_arch} in
-sm_10 | sm_11 | sm_12 | sm_13 | sm_20 | sm_21 | sm_30 ) ;;
+sm_11 | sm_12 | sm_13 | sm_20 | sm_21 | sm_30 | sm_35) ;;
 *) 
-  AC_MSG_ERROR([ GPU arch must be one of: sm_10, sm_11, sm_12, sm_13, sm_20, sm_21 or sm_30 ])
+  AC_MSG_ERROR([ GPU arch must be one of: sm_11, sm_12, sm_13, sm_20, sm_21, sm_30, or sm_35 ])
   ;;
 esac
 
@@ -522,6 +522,9 @@ AC_SUBST( FECC, [${CC}])
 
 AC_MSG_NOTICE([Setting FECXX = ${CXX} ])
 AC_SUBST( FECXX, [${CXX}])
+
+AC_MSG_NOTICE([Setting FEF90 = ${F90} ])
+AC_SUBST( FEF90, [${F90}])
 
 AC_MSG_NOTICE([Setting MPI_HOME=${mpi_home}])
 AC_SUBST( MPI_HOME, [${mpi_home}] )

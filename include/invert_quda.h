@@ -6,121 +6,161 @@
 #include <dirac_quda.h>
 #include <color_spinor_field.h>
 
-class Solver {
+namespace quda {
 
- protected:
-  QudaInvertParam &invParam;
+  class Solver {
 
- public:
-  Solver(QudaInvertParam &invParam) : invParam(invParam) { ; }
-  virtual ~Solver() { ; }
+  protected:
+    QudaInvertParam &invParam;
+    TimeProfile &profile;
 
-  virtual void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in) = 0;
-};
+  public:
+  Solver(QudaInvertParam &invParam, TimeProfile &profile) : invParam(invParam), profile(profile) { ; }
+    virtual ~Solver() { ; }
 
-class CG : public Solver {
+    virtual void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in) = 0;
 
- private:
-  const DiracMatrix &mat;
-  const DiracMatrix &matSloppy;
+    // solver factory
+    static Solver* create(QudaInvertParam &param, DiracMatrix &mat, DiracMatrix &matSloppy,
+			  DiracMatrix &matPrecon, TimeProfile &profile);
+  };
 
- public:
-  CG(DiracMatrix &mat, DiracMatrix &matSloppy, QudaInvertParam &invParam);
-  virtual ~CG();
+  class CG : public Solver {
 
-  void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
-};
+  private:
+    const DiracMatrix &mat;
+    const DiracMatrix &matSloppy;
 
-class BiCGstab : public Solver {
+  public:
+    CG(DiracMatrix &mat, DiracMatrix &matSloppy, QudaInvertParam &invParam, TimeProfile &profile);
+    virtual ~CG();
 
- private:
-  DiracMatrix &mat;
-  const DiracMatrix &matSloppy;
-  const DiracMatrix &matPrecon;
+    void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
+  };
 
-  // pointers to fields to avoid multiple creation overhead
-  cudaColorSpinorField *yp, *rp, *pp, *vp, *tmpp, *tp, *wp, *zp;
-  bool init;
+  class BiCGstab : public Solver {
 
- public:
-  BiCGstab(DiracMatrix &mat, DiracMatrix &matSloppy, DiracMatrix &matPrecon,
-	   QudaInvertParam &invParam);
-  virtual ~BiCGstab();
+  private:
+    DiracMatrix &mat;
+    const DiracMatrix &matSloppy;
+    const DiracMatrix &matPrecon;
 
-  void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
-};
+    // pointers to fields to avoid multiple creation overhead
+    cudaColorSpinorField *yp, *rp, *pp, *vp, *tmpp, *tp, *wp, *zp;
+    bool init;
 
-class GCR : public Solver {
+  public:
+    BiCGstab(DiracMatrix &mat, DiracMatrix &matSloppy, DiracMatrix &matPrecon,
+	     QudaInvertParam &invParam, TimeProfile &profile);
+    virtual ~BiCGstab();
 
- private:
-  const DiracMatrix &mat;
-  const DiracMatrix &matSloppy;
-  const DiracMatrix &matPrecon;
+    void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
+  };
 
-  Solver *K;
-  QudaInvertParam Kparam; // parameters for preconditioner solve
+  class GCR : public Solver {
 
- public:
-  GCR(DiracMatrix &mat, DiracMatrix &matSloppy, DiracMatrix &matPrecon,
-      QudaInvertParam &invParam);
-  virtual ~GCR();
+  private:
+    const DiracMatrix &mat;
+    const DiracMatrix &matSloppy;
+    const DiracMatrix &matPrecon;
 
-  void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
-};
+    Solver *K;
+    QudaInvertParam Kparam; // parameters for preconditioner solve
 
-class MR : public Solver {
+  public:
+    GCR(DiracMatrix &mat, DiracMatrix &matSloppy, DiracMatrix &matPrecon,
+	QudaInvertParam &invParam, TimeProfile &profile);
+    virtual ~GCR();
 
- private:
-  const DiracMatrix &mat;
-  cudaColorSpinorField *rp;
-  cudaColorSpinorField *Arp;
-  cudaColorSpinorField *tmpp;
-  bool init;
-  bool allocate_r;
+    void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
+  };
 
- public:
-  MR(DiracMatrix &mat, QudaInvertParam &invParam);
-  virtual ~MR();
+  class MR : public Solver {
 
-  void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
-};
+  private:
+    const DiracMatrix &mat;
+    cudaColorSpinorField *rp;
+    cudaColorSpinorField *Arp;
+    cudaColorSpinorField *tmpp;
+    bool init;
+    bool allocate_r;
 
-// multigrid solver
-class alphaSA : public Solver {
+  public:
+    MR(DiracMatrix &mat, QudaInvertParam &invParam, TimeProfile &profile);
+    virtual ~MR();
 
- protected:
-  const DiracMatrix &mat;
+    void operator()(cudaColorSpinorField &out, cudaColorSpinorField &in);
+  };
 
- public:
-  alphaSA(DiracMatrix &mat, QudaInvertParam &invParam);
-  virtual ~alphaSA() { ; }
+  // multigrid solver
+  class alphaSA : public Solver {
 
-  void operator()(cudaColorSpinorField **out, cudaColorSpinorField &in);
-};
+  protected:
+    const DiracMatrix &mat;
 
-class MultiShiftSolver {
+  public:
+    alphaSA(DiracMatrix &mat, QudaInvertParam &invParam, TimeProfile &profile);
+    virtual ~alphaSA() { ; }
 
- protected:
-  QudaInvertParam &invParam;
+    void operator()(cudaColorSpinorField **out, cudaColorSpinorField &in);
+  };
 
- public:
-  MultiShiftSolver(QudaInvertParam &invParam) : invParam(invParam) { ; }
-  virtual ~MultiShiftSolver() { ; }
+  class MultiShiftSolver {
 
-  virtual void operator()(cudaColorSpinorField **out, cudaColorSpinorField &in) = 0;
-};
+  protected:
+    QudaInvertParam &invParam;
+    TimeProfile &profile;
 
-class MultiShiftCG : public MultiShiftSolver {
+  public:
+    MultiShiftSolver(QudaInvertParam &invParam, TimeProfile &profile) : 
+    invParam(invParam), profile(profile) { ; }
+    virtual ~MultiShiftSolver() { ; }
 
- protected:
-  const DiracMatrix &mat;
-  const DiracMatrix &matSloppy;
+    virtual void operator()(cudaColorSpinorField **out, cudaColorSpinorField &in) = 0;
+  };
 
- public:
-  MultiShiftCG(DiracMatrix &mat, DiracMatrix &matSloppy, QudaInvertParam &invParam);
-  virtual ~MultiShiftCG();
+  class MultiShiftCG : public MultiShiftSolver {
 
-  void operator()(cudaColorSpinorField **out, cudaColorSpinorField &in);
-};
+  protected:
+    const DiracMatrix &mat;
+    const DiracMatrix &matSloppy;
+
+  public:
+    MultiShiftCG(DiracMatrix &mat, DiracMatrix &matSloppy, QudaInvertParam &invParam, TimeProfile &profile);
+    virtual ~MultiShiftCG();
+
+    void operator()(cudaColorSpinorField **out, cudaColorSpinorField &in);
+  };
+
+  /**
+  This computes the optimum guess for the system Ax=b in the L2
+  residual norm.  For use in the HMD force calculations using a
+  minimal residual chronological method This computes the guess
+  solution as a linear combination of a given number of previous
+  solutions.  Following Brower et al, only the orthogonalised vector
+  basis is stored to conserve memory.*/
+  class MinResExt {
+
+  protected:
+    const DiracMatrix &mat;
+    TimeProfile &profile;
+
+  public:
+    MinResExt(DiracMatrix &mat, TimeProfile &profile);
+    virtual ~MinResExt();
+
+    /**
+       param x The optimum for the solution vector.
+       param b The source vector in the equation to be solved. This is not preserved.
+       param p The basis vectors in which we are building the guess
+       param q The basis vectors multipled by A
+       param N The number of basis vectors
+       return The residue of this guess.
+    */  
+    void operator()(cudaColorSpinorField &x, cudaColorSpinorField &b, cudaColorSpinorField **p,
+		    cudaColorSpinorField **q, int N);
+  };
+
+} // namespace quda
 
 #endif // _INVERT_QUDA_H

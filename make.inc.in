@@ -7,7 +7,7 @@ QDPXX_LDFLAGS = @QDPXX_LDFLAGS@
 QDPXX_LIBS = @QDPXX_LIBS@
 
 CPU_ARCH = @CPU_ARCH@  	  # x86 or x86_64
-GPU_ARCH = @GPU_ARCH@	  # sm_10, sm_11, sm_12, sm_13, sm_20, sm_21 or sm_30
+GPU_ARCH = @GPU_ARCH@	  # sm_11, sm_12, sm_13, sm_20, sm_21, sm_30, or sm_35
 OS       = @QUDA_OS@	  # linux or osx
 
 PYTHON = @QUDA_PYTHON@	  # python 2.5 or later required for 'make gen'
@@ -45,6 +45,7 @@ USE_QDPJIT = @USE_QDPJIT@  # build QDP-JIT support?
 
 FECC = @FECC@ 	           # front-end CC
 FECXX = @FECXX@            # front-end CXX
+FEF90 = @FEF90@            # front-end F90
 
 MPI_HOME=@MPI_HOME@
 QMP_HOME=@QMP_HOME@
@@ -71,10 +72,13 @@ else
   NVCCOPT = -DPOINTER_SIZE=4
 endif
 
-COPT += -D__COMPUTE_CAPABILITY__=$(GPU_ARCH:sm_%=%0)
-NVCCOPT += -D__COMPUTE_CAPABILITY__=$(GPU_ARCH:sm_%=%0)
+COMP_CAP = $(GPU_ARCH:sm_%=%0)
 
-ifneq (,$(filter $(strip $(GPU_ARCH)),sm_20 sm_21 sm_30))
+COPT += -D__COMPUTE_CAPABILITY__=$(COMP_CAP)
+NVCCOPT += -D__COMPUTE_CAPABILITY__=$(COMP_CAP)
+
+TESLA_ARCH = $(shell [ $(COMP_CAP) -lt 200 ] && echo true)
+ifneq ($(TESLA_ARCH),true)
   NVCCOPT += -ftz=true -prec-div=false -prec-sqrt=false
 endif
 
@@ -85,6 +89,7 @@ endif
 
 CC  = $(FECC)
 CXX = $(FECXX)
+F90 = $(FEF90)
 
 ifeq ($(strip $(BUILD_MPI)), yes)
   MPI_CFLAGS =
@@ -144,15 +149,14 @@ ifeq ($(strip $(BUILD_FATLINK)), yes)
   NVCCOPT += -DGPU_FATLINK
   FATLINK_TEST=llfat_test
   COPT += -DGPU_FATLINK
-  FATLINK_ITF_OBJS=llfat_quda_itf.o
 endif
 ifeq ($(strip $(BUILD_HISQLINK)), yes)
   ifneq ($(strip $(BUILD_FATLINK)), yes) 
     NVCCOPT += -DGPU_FATLINK
     COPT    += -DGPU_FATLINK
     FATLINK_TEST=llfat_test
-    FATLINK_ITF_OBJS=llfat_quda_itf.o
   endif
+  UNITARIZE_LINK_TEST=unitarize_link_test
   NVCCOPT += -DGPU_UNITARIZE
   COPT    += -DGPU_UNITARIZE
 endif

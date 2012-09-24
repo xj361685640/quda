@@ -5,10 +5,10 @@
 #include <cuda.h>
 #include <gauge_field.h>
 
-#include "quda_matrix.h"
-#include "svd_quda.h"
+#include <quda_matrix.h>
+#include <svd_quda.h>
 
-
+namespace quda{
 
 #define HISQ_UNITARIZE_PI 3.14159265358979323846
 #define HISQ_UNITARIZE_PI23 HISQ_UNITARIZE_PI*2.0/3.0
@@ -22,6 +22,8 @@ __constant__ bool DEV_REUNIT_SVD_ONLY;
 __constant__ double DEV_REUNIT_SVD_REL_ERROR;
 __constant__ double DEV_REUNIT_SVD_ABS_ERROR;
 
+
+ 
 static double HOST_HISQ_UNITARIZE_EPS;
 static double HOST_HISQ_FORCE_FILTER;
 static double HOST_MAX_DET_ERROR;
@@ -31,41 +33,35 @@ static double HOST_REUNIT_SVD_REL_ERROR;
 static double HOST_REUNIT_SVD_ABS_ERROR;
 
 
-#ifdef MULTI_GPU
-#define HALF_VOLUME Vh_ex
-#else // single gpu
-#define HALF_VOLUME Vh
-#endif
+
  
-namespace quda{
   namespace fermion_force{
 
 
-
-    void setUnitarizeForceConstants(double unitarize_eps, double hisq_force_filter, double max_det_error, 
-				    bool allow_svd, bool svd_only,
-				    double svd_rel_error, double svd_abs_error)
+    void setUnitarizeForceConstants(double unitarize_eps_h, double hisq_force_filter_h, 
+				    double max_det_error_h, bool allow_svd_h, bool svd_only_h,
+				    double svd_rel_error_h, double svd_abs_error_h)
     {
 
       // not_set is only initialised once
       static bool not_set=true;
 		
       if(not_set){
-	cudaMemcpyToSymbol("DEV_HISQ_UNITARIZE_EPS", &unitarize_eps, sizeof(double));
-	cudaMemcpyToSymbol("DEV_HISQ_FORCE_FILTER", &hisq_force_filter, sizeof(double));
-	cudaMemcpyToSymbol("DEV_MAX_DET_ERROR", &max_det_error, sizeof(double));
-	cudaMemcpyToSymbol("DEV_REUNIT_ALLOW_SVD", &allow_svd, sizeof(bool));
-	cudaMemcpyToSymbol("DEV_REUNIT_SVD_ONLY", &svd_only, sizeof(bool));
-	cudaMemcpyToSymbol("DEV_REUNIT_SVD_REL_ERROR", &svd_rel_error, sizeof(double));
-	cudaMemcpyToSymbol("DEV_REUNIT_SVD_ABS_ERROR", &svd_abs_error, sizeof(double));
+	cudaMemcpyToSymbol(DEV_HISQ_UNITARIZE_EPS, &unitarize_eps_h, sizeof(double));
+	cudaMemcpyToSymbol(DEV_HISQ_FORCE_FILTER, &hisq_force_filter_h, sizeof(double));
+	cudaMemcpyToSymbol(DEV_MAX_DET_ERROR, &max_det_error_h, sizeof(double));
+	cudaMemcpyToSymbol(DEV_REUNIT_ALLOW_SVD, &allow_svd_h, sizeof(bool));
+	cudaMemcpyToSymbol(DEV_REUNIT_SVD_ONLY, &svd_only_h, sizeof(bool));
+	cudaMemcpyToSymbol(DEV_REUNIT_SVD_REL_ERROR, &svd_rel_error_h, sizeof(double));
+	cudaMemcpyToSymbol(DEV_REUNIT_SVD_ABS_ERROR, &svd_abs_error_h, sizeof(double));
 	
-	HOST_HISQ_UNITARIZE_EPS = unitarize_eps;
-	HOST_HISQ_FORCE_FILTER = hisq_force_filter;
-	HOST_MAX_DET_ERROR = max_det_error;     
-	HOST_REUNIT_ALLOW_SVD = allow_svd;
-	HOST_REUNIT_SVD_ONLY = svd_only;
-	HOST_REUNIT_SVD_REL_ERROR = svd_rel_error;
-	HOST_REUNIT_SVD_ABS_ERROR = svd_abs_error;
+	HOST_HISQ_UNITARIZE_EPS = unitarize_eps_h;
+	HOST_HISQ_FORCE_FILTER = hisq_force_filter_h;
+	HOST_MAX_DET_ERROR = max_det_error_h;     
+	HOST_REUNIT_ALLOW_SVD = allow_svd_h;
+	HOST_REUNIT_SVD_ONLY = svd_only_h;
+	HOST_REUNIT_SVD_REL_ERROR = svd_rel_error_h;
+	HOST_REUNIT_SVD_ABS_ERROR = svd_abs_error_h;
 
 	not_set = false;
       }
@@ -509,7 +505,10 @@ namespace quda{
 					   Cmplx* force_even, Cmplx* force_odd,
 					   int* unitarization_failed)
     {
+       
       int mem_idx = blockIdx.x*blockDim.x + threadIdx.x;
+      // The number of GPU threads is equal to the local volume
+      const int HALF_VOLUME = threads/2;
       if(mem_idx >= threads) return;
 	
       Cmplx* force;
@@ -520,10 +519,10 @@ namespace quda{
       link = link_even;
       old_force = old_force_even;
       if(mem_idx >= HALF_VOLUME){
-	mem_idx = mem_idx - HALF_VOLUME;
-	force = force_odd;
-	link = link_odd;
-	old_force = old_force_odd;
+	      mem_idx = mem_idx - HALF_VOLUME;
+	      force = force_odd;
+	      link = link_odd;
+	      old_force = old_force_odd;
       }
 
 
@@ -547,21 +546,46 @@ namespace quda{
       
       int num_failures = 0;	
       Matrix<double2,3> old_force, new_force, v;
-      for(int i=0; i<cpuGauge.Volume(); ++i){
-	for(int dir=0; dir<4; ++dir){
-	  if(param.cpu_prec == QUDA_SINGLE_PRECISION){
-	    copyArrayToLink(&old_force, ((float*)(cpuOldForce.Gauge_p()) + (i*4 + dir)*18)); 
-	    copyArrayToLink(&v, ((float*)(cpuGauge.Gauge_p()) + (i*4 + dir)*18)); 
-	    getUnitarizeForceSite<double2>(v, old_force, &new_force, &num_failures);
-	    copyLinkToArray(((float*)(cpuNewForce->Gauge_p()) + (i*4 + dir)*18), new_force); 
-	  }else if(param.cpu_prec == QUDA_DOUBLE_PRECISION){
-	    copyArrayToLink(&old_force, ((double*)(cpuOldForce.Gauge_p()) + (i*4 + dir)*18)); 
-	    copyArrayToLink(&v, ((double*)(cpuGauge.Gauge_p()) + (i*4 + dir)*18)); 
-	    getUnitarizeForceSite<double2>(v, old_force, &new_force, &num_failures);
-	    copyLinkToArray(((double*)(cpuNewForce->Gauge_p()) + (i*4 + dir)*18), new_force); 
-	  } // precision?
-	} // dir
-      } // i
+
+      // I can change this code to make it much more compact
+
+      const QudaGaugeFieldOrder order = cpuGauge.Order();
+
+      if(order == QUDA_MILC_GAUGE_ORDER){
+        for(int i=0; i<cpuGauge.Volume(); ++i){
+	  for(int dir=0; dir<4; ++dir){
+	    if(param.cpu_prec == QUDA_SINGLE_PRECISION){
+	      copyArrayToLink(&old_force, ((float*)(cpuOldForce.Gauge_p()) + (i*4 + dir)*18)); 
+	      copyArrayToLink(&v, ((float*)(cpuGauge.Gauge_p()) + (i*4 + dir)*18)); 
+	      getUnitarizeForceSite<double2>(v, old_force, &new_force, &num_failures);
+	      copyLinkToArray(((float*)(cpuNewForce->Gauge_p()) + (i*4 + dir)*18), new_force); 
+	    }else if(param.cpu_prec == QUDA_DOUBLE_PRECISION){
+	      copyArrayToLink(&old_force, ((double*)(cpuOldForce.Gauge_p()) + (i*4 + dir)*18)); 
+	      copyArrayToLink(&v, ((double*)(cpuGauge.Gauge_p()) + (i*4 + dir)*18)); 
+	      getUnitarizeForceSite<double2>(v, old_force, &new_force, &num_failures);
+	      copyLinkToArray(((double*)(cpuNewForce->Gauge_p()) + (i*4 + dir)*18), new_force); 
+	    } // precision?
+	  } // dir
+        } // i
+      }else if(order == QUDA_QDP_GAUGE_ORDER){
+        for(int dir=0; dir<4; ++dir){
+          for(int i=0; i<cpuGauge.Volume(); ++i){
+	    if(param.cpu_prec == QUDA_SINGLE_PRECISION){
+	      copyArrayToLink(&old_force, ((float**)(cpuOldForce.Gauge_p()))[dir] + i*18);
+	      copyArrayToLink(&v, ((float**)(cpuGauge.Gauge_p()))[dir] + i*18);
+	      getUnitarizeForceSite<double2>(v, old_force, &new_force, &num_failures);
+	      copyLinkToArray(((float**)(cpuNewForce->Gauge_p()))[dir] + i*18, new_force);
+	    }else if(param.cpu_prec == QUDA_DOUBLE_PRECISION){
+	      copyArrayToLink(&old_force, ((double**)(cpuOldForce.Gauge_p()))[dir] + i*18);
+	      copyArrayToLink(&v, ((double**)(cpuGauge.Gauge_p()))[dir] + i*18);
+	      getUnitarizeForceSite<double2>(v, old_force, &new_force, &num_failures);
+	      copyLinkToArray(((double**)(cpuNewForce->Gauge_p()))[dir] + i*18, new_force);
+	    }
+          }
+        }
+      }else{
+        errorQuda("Only MILC and QDP gauge orders supported\n");
+      }
       return;
     } // unitarize_force_cpu
 

@@ -66,9 +66,11 @@ su3_matrix* get_su3_matrix(int gauge_order, su3_matrix* p, int idx, int dir)
 {
   if(gauge_order == QUDA_MILC_GAUGE_ORDER){
     return (p + 4*idx + dir);
-  }else{ //QDP format
+  }else if(gauge_order == QUDA_QDP_GAUGE_ORDER){ // This is nasty! 
     su3_matrix* data = ((su3_matrix**)p)[dir];
     return data + idx;
+  }else{
+    errorQuda("get_su3_matrix: unsupported ordering scheme!\n");
   }
 }
 
@@ -425,6 +427,8 @@ forward_shifted_outer_prod(half_wilson_vector *src, su3_matrix* dest, int dir)
 
   return;
 }
+
+
 
 
 
@@ -837,15 +841,17 @@ void do_color_matrix_hisq_force_reference(Real eps, Real weight,
           continue;
         }
 
-        // 5 link path
-        //
-        //        sig
-        //    A ________
-        //     |        |
-        //    /|\      \|/
-        //     |        |
-        //      \	 \
-        //	 \        \
+	/*
+         5 link path
+        
+                sig
+            A ________
+             |        |
+            /|\      \|/
+             |        |
+              \	       \
+               \        \
+	*/
 
         u_shift_mat(Pmu, Pnumu, OPP_DIR(nu), sitelink);
         u_shift_mat(Qmu, Qnumu, OPP_DIR(nu), sitelink);
@@ -1011,16 +1017,18 @@ void do_halfwilson_hisq_force_reference(Real eps, Real weight,
 	 || nu == mu || nu == OPP_DIR(mu)){
 	 continue;
         }
-	
-	// 5 link path
-        //
-	//        sig
-	//    A ________
-	//     |        |
-	//    /|\      \|/
-	//     |        |
-	//      \        \
-	//	 \        \
+
+	/*	
+	 5 link path
+        
+	        sig
+	    A ________
+	     |        |
+	    /|\      \|/
+	     |        |
+	      \        \
+	       \        \
+	*/
 
 	u_shift_mat(Pmu, Pnumu, OPP_DIR(nu), sitelink);
 	u_shift_mat(Qmu, Qnumu, OPP_DIR(nu), sitelink);

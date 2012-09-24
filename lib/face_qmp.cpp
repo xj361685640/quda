@@ -11,7 +11,7 @@
 #include <qmp.h>
 #endif
 
-using namespace std;
+using namespace quda;
 
 cudaStream_t *stream;
 
@@ -52,47 +52,26 @@ FaceBuffer::FaceBuffer(const int *X, const int nDim, const int Ninternal,
   recFwdStrmIdx = sendBackStrmIdx;
   recBackStrmIdx = sendFwdStrmIdx;
   
-  unsigned int flag = cudaHostAllocDefault;
-
   // Buffers hold half spinors
   for (int i=0; i<nDimComms; i++) {
     nbytes[i] = nFace*faceVolumeCB[i]*Ninternal*precision;
-
     // add extra space for the norms for half precision
     if (precision == QUDA_HALF_PRECISION) nbytes[i] += nFace*faceVolumeCB[i]*sizeof(float);
-    //printf("bytes = %d, nFace = %d, faceVolume = %d, Ndof = %d, prec =  %d\n", 
-    //	   nbytes[i], nFace, faceVolumeCB[i], Ninternal, precision);
 
-    cudaHostAlloc(&(my_fwd_face[i]), nbytes[i], flag);
-    if( !my_fwd_face[i] ) errorQuda("Unable to allocate my_fwd_face with size %lu", nbytes[i]);
-  
-    //printf("%d\n", nbytes[i]);
+    my_fwd_face[i] = pinned_malloc(nbytes[i]);
+    my_back_face[i] = pinned_malloc(nbytes[i]);
 
-    cudaHostAlloc(&(my_back_face[i]), nbytes[i], flag);
-    if( !my_back_face[i] ) errorQuda("Unable to allocate my_back_face with size %lu", nbytes[i]);
-  }
-
-  for (int i=0; i<nDimComms; i++) {
 #ifdef QMP_COMMS
-    cudaHostAlloc(&(from_fwd_face[i]), nbytes[i], flag);
-    if( !from_fwd_face[i] ) errorQuda("Unable to allocate from_fwd_face with size %lu", nbytes[i]);
-    
-    cudaHostAlloc(&(from_back_face[i]), nbytes[i], flag);
-    if( !from_back_face[i] ) errorQuda("Unable to allocate from_back_face with size %lu", nbytes[i]);
+
+    from_fwd_face[i] = pinned_malloc(nbytes[i]);
+    from_back_face[i] = pinned_malloc(nbytes[i]);
 
 // if no GPUDirect so need separate IB and GPU host buffers
 #ifndef GPU_DIRECT
-    ib_my_fwd_face[i] = malloc(nbytes[i]);
-    if (!ib_my_fwd_face[i]) errorQuda("Unable to allocate ib_my_fwd_face with size %lu", nbytes[i]);
-
-    ib_my_back_face[i] = malloc(nbytes[i]);
-    if (!ib_my_back_face[i]) errorQuda("Unable to allocate ib_my_back_face with size %lu", nbytes[i]);
-
-    ib_from_fwd_face[i] = malloc(nbytes[i]);
-    if (!ib_from_fwd_face[i]) errorQuda("Unable to allocate ib_from_fwd_face with size %lu", nbytes[i]);
-
-    ib_from_back_face[i] = malloc(nbytes[i]);
-    if (!ib_from_back_face[i]) errorQuda("Unable to allocate ib_from_back_face with size %lu", nbytes[i]);
+    ib_my_fwd_face[i] = safe_malloc(nbytes[i]);
+    ib_my_back_face[i] = safe_malloc(nbytes[i]);
+    ib_from_fwd_face[i] = safe_malloc(nbytes[i]);
+    ib_from_back_face[i] = safe_malloc(nbytes[i]);
 #else // else just alias the pointer
     ib_my_fwd_face[i] = my_fwd_face[i];
     ib_my_back_face[i] = my_back_face[i];
@@ -135,6 +114,7 @@ FaceBuffer::FaceBuffer(const int *X, const int nDim, const int Ninternal,
   }
 #endif
 
+  checkCudaError();
 }
 
 FaceBuffer::FaceBuffer(const FaceBuffer &face) {
@@ -170,10 +150,10 @@ FaceBuffer::~FaceBuffer()
 #ifdef QMP_COMMS
 
 #ifndef GPU_DIRECT
-    free(ib_my_fwd_face[i]);
-    free(ib_my_back_face[i]);
-    free(ib_from_fwd_face[i]);
-    free(ib_from_back_face[i]);
+    host_free(ib_my_fwd_face[i]);
+    host_free(ib_my_back_face[i]);
+    host_free(ib_from_fwd_face[i]);
+    host_free(ib_from_back_face[i]);
 #endif
 
     QMP_free_msghandle(mh_send_fwd[i]);
@@ -184,11 +164,14 @@ FaceBuffer::~FaceBuffer()
     QMP_free_msgmem(mm_send_back[i]);
     QMP_free_msgmem(mm_from_fwd[i]);
     QMP_free_msgmem(mm_from_back[i]);
-    cudaFreeHost(from_fwd_face[i]); // these are aliasing pointers for non-qmp case
-    cudaFreeHost(from_back_face[i]);// these are aliasing pointers for non-qmp case
-#endif
-    cudaFreeHost(my_fwd_face[i]);
-    cudaFreeHost(my_back_face[i]);
+
+    host_free(from_fwd_face[i]);
+    host_free(from_back_face[i]);
+
+#endif // QMP_COMMS
+
+    host_free(my_fwd_face[i]);
+    host_free(my_back_face[i]);
   }
 
   for (int i=0; i<nDimComms; i++) {
@@ -197,6 +180,8 @@ FaceBuffer::~FaceBuffer()
     from_fwd_face[i]=NULL;
     from_back_face[i]=NULL;
   }
+
+  checkCudaError();
 }
 
 void FaceBuffer::pack(cudaColorSpinorField &in, int parity, int dagger, int dim, cudaStream_t *stream_p)
