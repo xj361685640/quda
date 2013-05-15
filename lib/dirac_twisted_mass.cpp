@@ -92,7 +92,6 @@ namespace quda {
     } else {
       double a = -2.0 * kappa * mu; //for twist 
       double b = -2.0 * kappa * epsilon;//for twist
-    
       twistedMassDslashCuda(&out.Odd(), gauge, &in.Even(), QUDA_ODD_PARITY, dagger, &in.Odd(), QUDA_NONDEG_DSLASH, a, b, 1.0, -kappa, commDim);      
       twistedMassDslashCuda(&out.Even(), gauge, &in.Odd(), QUDA_EVEN_PARITY, dagger, &in.Even(), QUDA_NONDEG_DSLASH, a, b, 1.0, -kappa, commDim);      
 
@@ -178,7 +177,7 @@ namespace quda {
 	flops += 1392ll*in.Volume();
       } else { 
 	twistedMassDslashCuda(&out, gauge, &in, parity, dagger, 0, QUDA_DEG_TWIST_INV_DSLASH, a, b, 0.0, 0.0, commDim);	
-        flops += 72ll*in.Volume();
+        flops += 1392ll*in.Volume();
       }
     } else {//TWIST doublet :
       double a = 2.0 * kappa * mu;  
@@ -221,11 +220,11 @@ namespace quda {
       double b = 1.0 / (1.0 + a*a);                     //for invert twist 
       if (!dagger) {
         b *= k;                                         //times k for the xpay term
-        twistedMassDslashCuda(&out, gauge, &in, parity, dagger, &x, QUDA_DEG_DSLASH_TWIST_INV_XPAY, a, b, 0.0, 0.0, commDim);
+        twistedMassDslashCuda(&out, gauge, &in, parity, dagger, &x, QUDA_DEG_DSLASH_TWIST_INV, a, b, 0.0, 0.0, commDim);
         flops += 1416ll*in.Volume();
       } else { // tmp1 can alias in, but tmp2 can alias x so must not use this
-        twistedMassDslashCuda(&out, gauge, &in, parity, dagger, &x, QUDA_DEG_TWIST_INV_DSLASH_XPAY, a, b, k, 0.0, commDim);
-        flops += 96ll*in.Volume();
+        twistedMassDslashCuda(&out, gauge, &in, parity, dagger, &x, QUDA_DEG_TWIST_INV_DSLASH, a, b, k, 0.0, commDim);
+        flops += 1392ll*in.Volume();
       }
     } else {//TWIST_DOUBLET:
       double a = 2.0 * kappa * mu;  
@@ -264,10 +263,10 @@ namespace quda {
         double a = 2.0 * kappa * in.TwistFlavor() * mu;
         if (matpcType == QUDA_MATPC_EVEN_EVEN_ASYMMETRIC) {
 	  Dslash(*tmp1, in, QUDA_ODD_PARITY);
-          twistedMassDslashCuda(&out, gauge, tmp1, QUDA_EVEN_PARITY, dagger, &in, QUDA_DEG_DSLASH_TWISTED_XPAY, a, kappa2, 0.0, 0.0, commDim); 	 
+          twistedMassDslashCuda(&out, gauge, tmp1, QUDA_EVEN_PARITY, dagger, &in, QUDA_DEG_DSLASH_TWIST_XPAY, a, kappa2, 0.0, 0.0, commDim); 	 
         } else if (matpcType == QUDA_MATPC_ODD_ODD_ASYMMETRIC) {
 	  Dslash(*tmp1, in, QUDA_EVEN_PARITY);
-          twistedMassDslashCuda(&out, gauge, tmp1, QUDA_ODD_PARITY, dagger, &in, QUDA_DEG_DSLASH_TWISTED_XPAY, a, kappa2, 0.0, 0.0, commDim);
+          twistedMassDslashCuda(&out, gauge, tmp1, QUDA_ODD_PARITY, dagger, &in, QUDA_DEG_DSLASH_TWIST_XPAY, a, kappa2, 0.0, 0.0, commDim);
         }else { // symmetric preconditioning
           errorQuda("Invalid matpcType");
         }
@@ -281,7 +280,6 @@ namespace quda {
 	DslashXpay(out, *tmp1, QUDA_ODD_PARITY, in, kappa2);
       } else {// asymmetric preconditioning
 	//Parameter for invert twist (note the implemented operator: c*(1 - i *a * gamma_5 tau_3 + b * tau_1)):
-        
         //double a = !dagger ? -2.0 * kappa * mu : 2.0 * kappa * mu;  
         double a = -2.0 * kappa * mu;  
         double b = -2.0 * kappa * epsilon;

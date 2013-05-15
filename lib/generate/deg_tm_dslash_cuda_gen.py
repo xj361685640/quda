@@ -727,7 +727,7 @@ def input_spinor(s,c,z):
 
 def twisted():
     str = "//apply twisted mass rotation\n"
-    str +="if (param.tmdslash_type == DSLASH_TWIST_INV)\n"
+    str +="if (param.tmdslash_type == DEGTM_DSLASH_TWIST_INV)\n"
     if not dagger:
         str += "   APPLY_TWIST_INV( a, b, o);\n"
     else:
@@ -740,7 +740,7 @@ def xpay():
     str = ""
     str += "#ifdef DSLASH_XPAY\n\n"
     str += "READ_ACCUM(ACCUMTEX, sp_stride)\n\n"
-    str +="if (param.tmdslash_type == DSLASH_TWIST_XPAY){\n"
+    str +="if (param.tmdslash_type == DEGTM_DSLASH_TWIST_XPAY){\n"
     if not dagger:
            str += "   APPLY_TWIST( a, acc);\n"
     else:
@@ -752,11 +752,20 @@ def xpay():
             str += out_re(s,c) +" = b*"+out_re(s,c)+"+"+acc_re(s,c)+";\n"
             str += out_im(s,c) +" = b*"+out_im(s,c)+"+"+acc_im(s,c)+";\n"
     str +="}else{\n"
+    str += "#ifdef TWIST_INV_DSLASH\n"
+    for s in range(0,4):
+        for c in range(0,3):
+            i = 3*s+c
+            str += out_re(s,c) +" = c*"+out_re(s,c)+"+"+acc_re(s,c)+";\n"
+
+            str += out_im(s,c) +" = c*"+out_im(s,c)+"+"+acc_im(s,c)+";\n"
+    str += "#else\n"
     for s in range(0,4):
         for c in range(0,3):
             i = 3*s+c
             str += out_re(s,c) +" += "+acc_re(s,c)+";\n"
             str += out_im(s,c) +" += "+acc_im(s,c)+";\n"
+    str += "#endif\n"
     str += "}\n\n"
     str += "#endif\n"
     return str

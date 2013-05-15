@@ -151,7 +151,7 @@ namespace quda {
   class ColorSpinorField {
 
   private:
-    void create(int nDim, const int *x, int Nc, int Ns, QudaTwistFlavorType Twistflavor, 
+    void create(int nDim, const int *x, int Nc, int Ns, QudaTwistFlavorType Twistflavor, QudaTwistPackType   TwistPack,
 		QudaPrecision precision, int pad, QudaSiteSubset subset, 
 		QudaSiteOrder siteOrder, QudaFieldOrder fieldOrder, QudaGammaBasis gammaBasis);
     void destroy();  

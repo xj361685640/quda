@@ -956,11 +956,11 @@ namespace quda {
       if(degtm && ( in->TwistPack() == QUDA_TWIST_PACK_NO )){
         DSLASH(twistedMassTwistInvDslash, tp.grid, tp.block, tp.shared_bytes, stream, dslashParam,
 	     (sFloat*)out->V(), (float*)out->Norm(), gauge0, gauge1, 
-	     (sFloat*)in->V(), (float*)in->Norm(), a, b, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
+	     (sFloat*)in->V(), (float*)in->Norm(), a, b, c, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
       }else if (degtm && ( in->TwistPack() == QUDA_TWIST_PACK_YES ))
         DSLASH(twistedMassDslash, tp.grid, tp.block, tp.shared_bytes, stream, dslashParam,
 	     (sFloat*)out->V(), (float*)out->Norm(), gauge0, gauge1, 
-	     (sFloat*)in->V(), (float*)in->Norm(), a, b, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
+	     (sFloat*)in->V(), (float*)in->Norm(), a, b, c, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
       } else{
         NDEG_TM_DSLASH(twistedNdegMassDslash, tp.grid, tp.block, tp.shared_bytes, stream, dslashParam,
 	     (sFloat*)out->V(), (float*)out->Norm(), gauge0, gauge1, 
@@ -1516,6 +1516,8 @@ namespace quda {
     switch(type){
       case QUDA_NONDEG_DSLASH:
         in->SetTwistPackType(QUDA_TWIST_PACK_NO);
+        dslashParam.a = 0.0; 
+        dslashParam.b = 0.0;
       break;
       case QUDA_DEG_TWIST_INV_DSLASH :
         in->SetTwistPackType(QUDA_TWIST_PACK_YES);
@@ -1535,7 +1537,12 @@ namespace quda {
         dslashParam.b = 0.0;
         dslashParam.tmdslah_type = DEGTM_DSLASH_TWIST_XPAY;
       break;
-//      default: break;
+      default:
+      {
+        in->SetTwistPackType(QUDA_TWIST_PACK_NO);
+        dslashParam.a = 0.0; 
+        dslashParam.b = 0.0;
+      }
     }
 
     void *gauge0, *gauge1;
