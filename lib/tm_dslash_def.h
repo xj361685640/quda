@@ -31,13 +31,15 @@
 #define DD_LOOP
 #define DD_DAG 0
 #define DD_XPAY 0
+//!
+#define DD_TWIST 0
 #define DD_RECON 0
 #define DD_PREC 0
 #endif
 
 // set options for current iteration
 
-#define DD_NAME_F twistedMassDslash
+//#define DD_NAME_F twistedMassDslash
 
 #if (DD_DAG==0) // no dagger
 #define DD_DAG_F
@@ -45,12 +47,29 @@
 #define DD_DAG_F Dagger
 #endif
 
+//!
 #if (DD_XPAY==0) // no xpay 
 #define DD_XPAY_F 
-#else
+#elif (DD_XPAY==1)
 #define DSLASH_XPAY
 #define DD_XPAY_F Xpay
+//#else
+//#define TWISTED_XPAY
+//#define DD_XPAY_F TwistedXpay
 #endif
+
+#if (DD_TWIST==0) // twisted input 
+#define DD_NAME_F twistedMassTwistInvDslash
+#define TWIST_INV_DSLASH
+#else
+//#if (DD_XPAY !=2)// twisted output
+#define DD_NAME_F twistedMassDslash
+//#define DSLASH_TWIST_INV
+//#else//normal wilson dslash
+//#define DD_NAME_F twistedMassDslashType2
+//#endif
+#endif
+//!
 
 #if (DD_PREC == 0)
 #define DD_PARAM4 const double a, const double b, const double2 *x, const float *xNorm, const DslashParam param
@@ -203,7 +222,8 @@
 #endif
 #define WRITE_SPINOR WRITE_SPINOR_DOUBLE2
 #define SPINOR_DOUBLE
-#if (DD_XPAY==1)
+//!0513
+#if (DD_XPAY!=0)
 #if (defined DIRECT_ACCESS_WILSON_ACCUM) || (defined FERMI_NO_DBLE_TEX)
 #define ACCUMTEX x
 #define READ_ACCUM READ_ACCUM_DOUBLE
@@ -274,7 +294,8 @@
 #endif // USE_TEXTURE_OBJECTS
 #endif
 #define WRITE_SPINOR WRITE_SPINOR_FLOAT4
-#if (DD_XPAY==1)
+//!0513
+#if (DD_XPAY!=0)
 #ifdef DIRECT_ACCESS_WILSON_ACCUM
 #define ACCUMTEX x
 #define READ_ACCUM READ_ACCUM_SINGLE
@@ -344,7 +365,8 @@
 #define DD_PARAM1 short4* out, float *outNorm
 #define DD_PARAM3 const short4* in, const float *inNorm
 #define WRITE_SPINOR WRITE_SPINOR_SHORT4
-#if (DD_XPAY==1)
+//!0513
+#if (DD_XPAY!=0)
 #ifdef DIRECT_ACCESS_WILSON_ACCUM
 #define ACCUMTEX x
 #define READ_ACCUM READ_ACCUM_HALF
@@ -370,7 +392,7 @@
 #define DD_FUNC(n,r,d,x) DD_CONCAT(n,r,d,x)
 
 // define the kernel
-
+//!051013
 template <KernelType kernel_type>
 __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
      (DD_PARAM1, DD_PARAM2, DD_PARAM3, DD_PARAM4) {
@@ -422,7 +444,10 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
 #undef DD_CONCAT
 #undef DD_FUNC
 
+//!
 #undef DSLASH_XPAY
+#undef TWIST_INV_DSLASH
+//!
 #undef READ_GAUGE_MATRIX
 #undef RECONSTRUCT_GAUGE_MATRIX
 #undef GAUGE0TEX
@@ -452,6 +477,13 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
 #undef DD_DAG
 #define DD_DAG 0
 
+#if (DD_TWIST==0)
+#undef DD_TWIST
+#define DD_TWIST 1
+#else
+#undef DD_TWIST
+#define DD_TWIST 0
+
 #if (DD_XPAY==0)
 #undef DD_XPAY
 #define DD_XPAY 1
@@ -480,6 +512,7 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
 
 #undef DD_LOOP
 #undef DD_DAG
+#undef DD_TWIST
 #undef DD_XPAY
 #undef DD_RECON
 #undef DD_PREC
@@ -487,6 +520,7 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
 #endif // DD_PREC
 #endif // DD_RECON
 #endif // DD_XPAY
+#endif // DD_TWIST
 #endif // DD_DAG
 
 #ifdef DD_LOOP

@@ -628,6 +628,16 @@ namespace quda {
 #endif
 
   }
+
+  void cudaColorSpinorField::packTwistedGhost(const QudaParity parity, const int dagger, double a, double b, cudaStream_t *stream) 
+  {
+#ifdef MULTI_GPU
+    packTwistedFace(ghostFaceBuffer, *this, dagger, parity, *stream); 
+#else
+    errorQuda("packTwistedGhost not built on single-GPU build");
+#endif
+
+  }
  
   // send the ghost zone to the host
   void cudaColorSpinorField::sendGhost(void *ghost_spinor, const int dim, const QudaDirection dir,

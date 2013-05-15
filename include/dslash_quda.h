@@ -38,7 +38,6 @@ namespace quda {
   void initCloverConstants (const cudaCloverField &clover, TimeProfile &profile);
   void initStaggeredConstants(const cudaGaugeField &fatgauge, 
 			      const cudaGaugeField &longgauge, TimeProfile &profile);
-//!ndeg tm:
   void initTwistedMassConstants(const int flv_stride, TimeProfile &profile);
 
   // plain Wilson Dslash  
@@ -73,13 +72,11 @@ namespace quda {
 			   const cudaColorSpinorField *x, const double &k, 
 			   const int *commDim, TimeProfile &profile);
 
-//!ndeg tm:
   // twisted mass Dslash  
   void twistedMassDslashCuda(cudaColorSpinorField *out, const cudaGaugeField &gauge, const   cudaColorSpinorField *in, 
-			     const int parity, const int dagger, const cudaColorSpinorField *x, 
+			     const int parity, const int dagger, const cudaColorSpinorField *x, const QudaTwistDslashType type,
 			     const double &kappa, const double &mu, const double &epsilon, const double &k, const int *commDim, TimeProfile &profile);
 
-//!ndeg tm:
   // solo twist term
   void twistGamma5Cuda(cudaColorSpinorField *out, const cudaColorSpinorField *in, const int dagger,     
                        const double &kappa, const double &mu, const double &epsilon, 

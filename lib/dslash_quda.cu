@@ -58,6 +58,13 @@ enum KernelType {
   EXTERIOR_KERNEL_T = 3
 };
 
+enum TwistedMassDslashType {
+  DEGTM_DSLASH_TWIST_INV  = 0,
+  DEGTM_TWIST_INV_DSLASH  = 1,
+  DEGTM_DSLASH_TWIST_XPAY = 2,
+  NDEGTM_DSLASH = 3
+};
+
 namespace quda {
 
   struct DslashParam {
@@ -68,6 +75,11 @@ namespace quda {
     int ghostOffset[QUDA_MAX_DIM+1];
     int ghostNormOffset[QUDA_MAX_DIM+1];
     KernelType kernel_type; //is it INTERIOR_KERNEL, EXTERIOR_KERNEL_X/Y/Z/T
+
+    //these params are needed for twisted mass (in particular, for packing twisted spinor)
+    double a;//the first twist param
+    double b;//the second twist param
+    TwistedMassDslashType tmdslash_type;
 
 #ifdef USE_TEXTURE_OBJECTS
     cudaTextureObject_t inTex;
@@ -903,6 +915,7 @@ namespace quda {
     { 
       bindSpinorTex<sFloat>(in, out, x); 
 
+/*
       if((in->TwistFlavor() == QUDA_TWIST_PLUS) || (in->TwistFlavor() == QUDA_TWIST_MINUS))
       {
         setTwistParam(a, b, kappa, mu, dagger, QUDA_TWIST_GAMMA5_INVERSE);
@@ -912,6 +925,11 @@ namespace quda {
       else{//twist doublet:
         a = kappa, b = mu, c = epsilon, d = k;
       }
+*/    
+      a = dagger ? -kappa: kappa;
+      b = mu;
+      c = epsilon;
+      d = k;
     }
     virtual ~TwistedDslashCuda() { unbindSpinorTex<sFloat>(in, out, x); }
 
@@ -933,12 +951,17 @@ namespace quda {
 #endif
       TuneParam tp = tuneLaunch(*this, dslashTuning, verbosity);
 
-      if((in->TwistFlavor() == QUDA_TWIST_PLUS) || (in->TwistFlavor() == QUDA_TWIST_MINUS)){
+      bool degtm = (in->TwistFlavor() == QUDA_TWIST_PLUS) || (in->TwistFlavor() == QUDA_TWIST_MINUS);
+
+      if(degtm && ( in->TwistPack() == QUDA_TWIST_PACK_NO )){
+        DSLASH(twistedMassTwistInvDslash, tp.grid, tp.block, tp.shared_bytes, stream, dslashParam,
+	     (sFloat*)out->V(), (float*)out->Norm(), gauge0, gauge1, 
+	     (sFloat*)in->V(), (float*)in->Norm(), a, b, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
+      }else if (degtm && ( in->TwistPack() == QUDA_TWIST_PACK_YES ))
         DSLASH(twistedMassDslash, tp.grid, tp.block, tp.shared_bytes, stream, dslashParam,
 	     (sFloat*)out->V(), (float*)out->Norm(), gauge0, gauge1, 
 	     (sFloat*)in->V(), (float*)in->Norm(), a, b, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
-      }
-      else{
+      } else{
         NDEG_TM_DSLASH(twistedNdegMassDslash, tp.grid, tp.block, tp.shared_bytes, stream, dslashParam,
 	     (sFloat*)out->V(), (float*)out->Norm(), gauge0, gauge1, 
 	     (sFloat*)in->V(), (float*)in->Norm(), a, b, c, d, (sFloat*)(x ? x->V() : 0), (float*)(x ? x->Norm() : 0));
@@ -1187,7 +1210,11 @@ namespace quda {
       if (dslashParam.commDim[i] && (i!=3 || kernelPackT)) { pack = true; break; }
 
     // Initialize pack from source spinor
-    PROFILE(face->pack(*inSpinor, 1-parity, dagger, streams), 
+    if(inSpinor->TwistPack() == QUDA_TWIST_PACK_NO)
+	PROFILE(face->pack(*inSpinor, 1-parity, dagger, streams), 
+	    profile, QUDA_PROFILE_PACK_KERNEL);
+    else	
+        PROFILE(face->pack(*inSpinor, 1-parity, dagger, dslashParam.a, dslashParam.b, streams), 
 	    profile, QUDA_PROFILE_PACK_KERNEL);
 
     if (pack) {
@@ -1467,7 +1494,7 @@ namespace quda {
 
   void twistedMassDslashCuda(cudaColorSpinorField *out, const cudaGaugeField &gauge, 
 			     const cudaColorSpinorField *in, const int parity, const int dagger, 
-			     const cudaColorSpinorField *x, const double &kappa, const double &mu, 
+			     const cudaColorSpinorField *x, const QudaTwistDslashType type, const double &kappa, const double &mu, 
 			     const double &epsilon, const double &k,  const int *commOverride,
 			     TimeProfile &profile)
   {
@@ -1484,6 +1511,31 @@ namespace quda {
       dslashParam.ghostNormOffset[i] = in->GhostNormOffset(i) + in->Stride();
       dslashParam.commDim[i] = (!commOverride[i]) ? 0 : commDimPartitioned(i); // switch off comms if override = 0
       ghost_threads[i] = ((in->TwistFlavor() == QUDA_TWIST_PLUS) || (in->TwistFlavor() == QUDA_TWIST_MINUS)) ? in->GhostFace()[i] : in->GhostFace()[i] / 2;
+    }
+
+    switch(type){
+      case QUDA_NONDEG_DSLASH:
+        in->SetTwistPackType(QUDA_TWIST_PACK_NO);
+      break;
+      case QUDA_DEG_TWIST_INV_DSLASH :
+        in->SetTwistPackType(QUDA_TWIST_PACK_YES);
+        dslashParam.a = kappa; 
+        dslashParam.b = mu;
+        dslashParam.tmdslah_type = DEGTM_TWIST_INV_DSLASH;
+      break;
+      case QUDA_DEG_DSLASH_TWIST_INV :
+        in->SetTwistPackType(QUDA_TWIST_PACK_NO);
+        dslashParam.a = 0.0; 
+        dslashParam.b = 0.0;
+        dslashParam.tmdslah_type = DEGTM_DSLASH_TWIST_INV;
+      break;
+      case QUDA_DEG_DSLASH_TWIST_XPAY:
+        in->SetTwistPackType(QUDA_TWIST_PACK_NO);
+        dslashParam.a = 0.0; 
+        dslashParam.b = 0.0;
+        dslashParam.tmdslah_type = DEGTM_DSLASH_TWIST_XPAY;
+      break;
+//      default: break;
     }
 
     void *gauge0, *gauge1;
