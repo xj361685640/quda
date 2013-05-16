@@ -1131,12 +1131,12 @@ __global__ void packTwistedFaceWilsonKernel(Float a, Float b, PackParam<FloatN> 
   if (dim == 0) {
     if (face_num == 0) {
       const int idx = indexFromFaceIndex<0,nFace,0>(face_idx,ghostFace[0],param.parity);
-      packTwistedFaceWilsonCore<0,dagger,0>(param.out[0], param.outNorm[0], param.in, a, b,
-				    param.inNorm,idx, face_idx, ghostFace[0], param);
+      packTwistedFaceWilsonCore<0,dagger,0>(param.out[0], param.outNorm[0], param.in, 
+				    param.inNorm, a, b, idx, face_idx, ghostFace[0], param);
     } else {
       const int idx = indexFromFaceIndex<0,nFace,1>(face_idx,ghostFace[0],param.parity);
-      packTwistedFaceWilsonCore<0,dagger,1>(param.out[1], param.outNorm[1], param.in, a, b,
-					    param.inNorm,idx, face_idx, ghostFace[0], param);
+      packTwistedFaceWilsonCore<0,dagger,1>(param.out[1], param.outNorm[1], param.in, 
+					    param.inNorm, a, b, idx, face_idx, ghostFace[0], param);
     }
   } else if (dim == 1) {
     if (face_num == 0) {
@@ -1145,28 +1145,28 @@ __global__ void packTwistedFaceWilsonKernel(Float a, Float b, PackParam<FloatN> 
 				    param.inNorm,idx, face_idx, ghostFace[1], param);
     } else {
       const int idx = indexFromFaceIndex<1,nFace,1>(face_idx,ghostFace[1],param.parity);
-      packTwistedFaceWilsonCore<1, dagger,1>(param.out[3], param.outNorm[3], param.in, a, b,
-				    param.inNorm,idx, face_idx, ghostFace[1], param);
+      packTwistedFaceWilsonCore<1, dagger,1>(param.out[3], param.outNorm[3], param.in, 
+				    param.inNorm, a, b,idx, face_idx, ghostFace[1], param);
     }
   } else if (dim == 2) {
     if (face_num == 0) {
       const int idx = indexFromFaceIndex<2,nFace,0>(face_idx,ghostFace[2],param.parity);
-      packTwistedFaceWilsonCore<2, dagger,0>(param.out[4], param.outNorm[4], param.in, a, b,
-				      param.inNorm,idx, face_idx, ghostFace[2], param);
+      packTwistedFaceWilsonCore<2, dagger,0>(param.out[4], param.outNorm[4], param.in, 
+				      param.inNorm, a, b, idx, face_idx, ghostFace[2], param);
     } else {
       const int idx = indexFromFaceIndex<2,nFace,1>(face_idx,ghostFace[2],param.parity);
-      packTwistedFaceWilsonCore<2, dagger,1>(param.out[5], param.outNorm[5], param.in, a, b,
-				      param.inNorm,idx, face_idx, ghostFace[2], param);
+      packTwistedFaceWilsonCore<2, dagger,1>(param.out[5], param.outNorm[5], param.in, 
+				      param.inNorm, a, b, idx, face_idx, ghostFace[2], param);
     }
   } else {
     if (face_num == 0) {
       const int idx = indexFromFaceIndex<3,nFace,0>(face_idx,ghostFace[3],param.parity);
-      packTwistedFaceWilsonCore<3, dagger,0>(param.out[6], param.outNorm[6], param.in, a, b,
-				      param.inNorm,idx, face_idx, ghostFace[3], param);
+      packTwistedFaceWilsonCore<3, dagger,0>(param.out[6], param.outNorm[6], param.in, 
+				      param.inNorm, a, b,idx, face_idx, ghostFace[3], param);
     } else {
       const int idx = indexFromFaceIndex<3,nFace,1>(face_idx,ghostFace[3],param.parity);
-      packTwistedFaceWilsonCore<3, dagger,1>(param.out[7], param.outNorm[7], param.in, a, b,
-				      param.inNorm,idx, face_idx, ghostFace[3], param);
+      packTwistedFaceWilsonCore<3, dagger,1>(param.out[7], param.outNorm[7], param.in, 
+				      param.inNorm, a, b, idx, face_idx, ghostFace[3], param);
     }
   }
 
@@ -1331,7 +1331,7 @@ class PackFaceWilson : public PackFace<FloatN> {
   void apply_twisted(Float a, Float b, const cudaStream_t &stream) {
     TuneParam tp = tuneLaunch(*this, dslashTuning, verbosity);
 
-#ifdef GPU_WILSON_DIRAC
+#ifdef GPU_TWISTED_MASS_DIRAC
     PackParam<FloatN> param = this->prepareParam();
     if (this->dagger) {
       packTwistedFaceWilsonKernel<1><<<tp.grid, tp.block, tp.shared_bytes, stream>>>(a, b, param);
