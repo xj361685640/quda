@@ -277,12 +277,6 @@ extern "C" {
     QUDA_TWIST_INVALID = QUDA_INVALID_ENUM
   } QudaTwistFlavorType; 
 
-  typedef enum QudaTwistPackType_s {
-    QUDA_TWIST_PACK_YES = 1,
-    QUDA_TWIST_PACK_NO  = 0,
-    QUDA_TWIST_PACK_INVALID = QUDA_INVALID_ENUM
-  } QudaTwistPackType;
-
   typedef enum QudaTwistDslashType_s {
     QUDA_DEG_TWIST_INV_DSLASH,
     QUDA_DEG_DSLASH_TWIST_INV,

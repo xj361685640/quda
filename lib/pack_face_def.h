@@ -1864,10 +1864,10 @@ void packTwistedFace(void *ghost_buf, cudaColorSpinorField &in, const int dagger
   if (!nDimPack) return; // if zero then we have nothing to pack 
 
   // Need to update this logic for other multi-src dslash packing
-  if(in.TwistPack() == QUDA_TWIST_PACK_YES) {
+  if(in.TwistFlavor() != QUDA_TWIST_INVALID) {
     packTwistedFaceWilson(ghost_buf, in, dagger, parity, a, b, stream);
   } else {
-    errorQuda("Invalid packing parameter.");
+    errorQuda("Cannot performed twisted packing for the spinor.");
   }
 
 }

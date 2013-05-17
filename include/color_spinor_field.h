@@ -24,7 +24,6 @@ namespace quda {
     int pad; // volumetric padding
 
     QudaTwistFlavorType twistFlavor; // used by twisted mass
-    QudaTwistPackType   twistPack; // used by twisted mass
 
     QudaSiteSubset siteSubset; // Full, even or odd
     QudaSiteOrder siteOrder; // defined for full fields
@@ -42,7 +41,7 @@ namespace quda {
 
   ColorSpinorParam()
     : nColor(0), nSpin(0), nDim(0), precision(QUDA_INVALID_PRECISION), pad(0), 
-      twistFlavor(QUDA_TWIST_INVALID), twistPack(QUDA_TWIST_PACK_NO), siteSubset(QUDA_INVALID_SITE_SUBSET), 
+      twistFlavor(QUDA_TWIST_INVALID), siteSubset(QUDA_INVALID_SITE_SUBSET), 
       siteOrder(QUDA_INVALID_SITE_ORDER), fieldOrder(QUDA_INVALID_FIELD_ORDER), 
       gammaBasis(QUDA_INVALID_GAMMA_BASIS), create(QUDA_INVALID_FIELD_CREATE), 
       verbose(QUDA_SILENT)
@@ -53,7 +52,7 @@ namespace quda {
     // used to create cpu params
   ColorSpinorParam(void *V, QudaFieldLocation location, QudaInvertParam &inv_param, const int *X, const bool pc_solution)
     : nColor(3), nSpin(inv_param.dslash_type == QUDA_ASQTAD_DSLASH ? 1 : 4), nDim(4), 
-      pad(0), twistFlavor(inv_param.twist_flavor), twistPack(QUDA_TWIST_PACK_NO), siteSubset(QUDA_INVALID_SITE_SUBSET), siteOrder(QUDA_INVALID_SITE_ORDER), 
+      pad(0), twistFlavor(inv_param.twist_flavor), siteSubset(QUDA_INVALID_SITE_SUBSET), siteOrder(QUDA_INVALID_SITE_ORDER), 
       fieldOrder(QUDA_INVALID_FIELD_ORDER), gammaBasis(inv_param.gamma_basis), 
       create(QUDA_REFERENCE_FIELD_CREATE), v(V), verbose(inv_param.verbosity)
       { 
@@ -105,7 +104,7 @@ namespace quda {
   ColorSpinorParam(ColorSpinorParam &cpuParam, QudaInvertParam &inv_param) 
     : nColor(cpuParam.nColor), nSpin(cpuParam.nSpin), 
       nDim(cpuParam.nDim), precision(inv_param.cuda_prec), pad(inv_param.sp_pad),  
-      twistFlavor(cpuParam.twistFlavor), twistPack(cpuParam.twistPack), siteSubset(cpuParam.siteSubset), 
+      twistFlavor(cpuParam.twistFlavor), siteSubset(cpuParam.siteSubset), 
       siteOrder(QUDA_EVEN_ODD_SITE_ORDER), fieldOrder(QUDA_INVALID_FIELD_ORDER), 
       gammaBasis(nSpin == 4? QUDA_UKQCD_GAMMA_BASIS : QUDA_DEGRAND_ROSSI_GAMMA_BASIS), 
       create(QUDA_COPY_FIELD_CREATE), v(0), verbose(cpuParam.verbose)
@@ -127,7 +126,6 @@ namespace quda {
       printfQuda("nColor = %d\n", nColor);
       printfQuda("nSpin = %d\n", nSpin);
       printfQuda("twistFlavor = %d\n", twistFlavor);
-      printfQuda("twistPack = %d\n", twistPack);
       printfQuda("nDim = %d\n", nDim);
       for (int d=0; d<nDim; d++) printfQuda("x[%d] = %d\n", d, x[d]);
       printfQuda("precision = %d\n", precision);
@@ -151,7 +149,7 @@ namespace quda {
   class ColorSpinorField {
 
   private:
-    void create(int nDim, const int *x, int Nc, int Ns, QudaTwistFlavorType Twistflavor, QudaTwistPackType   TwistPack,
+    void create(int nDim, const int *x, int Nc, int Ns, QudaTwistFlavorType Twistflavor, 
 		QudaPrecision precision, int pad, QudaSiteSubset subset, 
 		QudaSiteOrder siteOrder, QudaFieldOrder fieldOrder, QudaGammaBasis gammaBasis);
     void destroy();  
@@ -173,7 +171,6 @@ namespace quda {
     int stride;
 
     QudaTwistFlavorType twistFlavor;
-    QudaTwistPackType   twistPack; // used by twisted mass
   
     int real_length; // physical length only
     int length; // length including pads, but not ghost zone - used for BLAS
@@ -223,13 +220,10 @@ namespace quda {
 
     virtual ColorSpinorField& operator=(const ColorSpinorField &);
 
-    void SetTwistPackType(QudaTwistFlavorType twist_pack) { twistPack = twist_pack; }
-
     QudaPrecision Precision() const { return precision; }
     int Ncolor() const { return nColor; } 
     int Nspin() const { return nSpin; } 
-    QudaTwistFlavorType TwistFlavor() const { return twistFlavor; }
-    QudaTwistPackType TwistPack() const { return twistPack; }  
+    QudaTwistFlavorType TwistFlavor() const { return twistFlavor; }  
     int Ndim() const { return nDim; }
     const int* X() const { return x; }
     int X(int d) const { return x[d]; }

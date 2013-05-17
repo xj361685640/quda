@@ -725,33 +725,12 @@ def input_spinor(s,c,z):
         if z==0: return in_re(s,c)
         else: return in_im(s,c)
 
-def twisted():
-    str = "//apply twisted mass rotation\n"
-    str +="if (param.tmdslash_type == DEGTM_DSLASH_TWIST_INV)\n"
-    if not dagger:
-        str += "   APPLY_TWIST_INV( a, b, o);\n"
-    else:
-        str += "   APPLY_TWIST_INV(-a, b, o);\n"
-    return str+"\n"        
-# end def twisted
 
-
-def xpay():
+def twisted_xpay():
     str = ""
-    str += "#ifdef DSLASH_XPAY\n\n"
+    str += "#ifdef DSLASH_XPAY\n"
     str += "READ_ACCUM(ACCUMTEX, sp_stride)\n\n"
-    str +="if (param.tmdslash_type == DEGTM_DSLASH_TWIST_XPAY){\n"
-    if not dagger:
-           str += "   APPLY_TWIST( a, acc);\n"
-    else:
-           str += "   APPLY_TWIST(-a, acc);\n"
-    str += "//warning! b is unrelated to the twisted mass parameter in this case!\n\n"
-    for s in range(0,4):
-        for c in range(0,3):
-            i = 3*s+c
-            str += out_re(s,c) +" = b*"+out_re(s,c)+"+"+acc_re(s,c)+";\n"
-            str += out_im(s,c) +" = b*"+out_im(s,c)+"+"+acc_im(s,c)+";\n"
-    str +="}else{\n"
+    str += "#ifndef TWIST_XPAY\n"
     str += "#ifdef TWIST_INV_DSLASH\n"
     for s in range(0,4):
         for c in range(0,3):
@@ -760,16 +739,38 @@ def xpay():
 
             str += out_im(s,c) +" = c*"+out_im(s,c)+"+"+acc_im(s,c)+";\n"
     str += "#else\n"
+    if not dagger:
+        str += "APPLY_TWIST_INV( a, b, o);\n"
+    else:
+        str += "APPLY_TWIST_INV(-a, b, o);\n"
     for s in range(0,4):
         for c in range(0,3):
             i = 3*s+c
             str += out_re(s,c) +" += "+acc_re(s,c)+";\n"
             str += out_im(s,c) +" += "+acc_im(s,c)+";\n"
     str += "#endif\n"
-    str += "}\n\n"
+    str += "#else\n"
+    if not dagger:
+           str += "APPLY_TWIST( a, acc);\n"
+    else:
+           str += "APPLY_TWIST(-a, acc);\n"
+    str += "//warning! b is unrelated to the twisted mass parameter in this case!\n\n"
+    for s in range(0,4):
+        for c in range(0,3):
+            i = 3*s+c
+            str += out_re(s,c) +" = b*"+out_re(s,c)+"+"+acc_re(s,c)+";\n"
+            str += out_im(s,c) +" = b*"+out_im(s,c)+"+"+acc_im(s,c)+";\n"
+    str += "#endif//TWIST_XPAY\n"
+    str += "#else //no XPAY\n"
+    str += "#ifndef TWIST_INV_DSLASH\n"
+    if not dagger:
+        str += "   APPLY_TWIST_INV( a, b, o);\n"
+    else:
+        str += "   APPLY_TWIST_INV(-a, b, o);\n"
+    str += "#endif\n"
     str += "#endif\n"
     return str
-# end def xpay
+# end def twisted_xpay
 
 
 def epilog():
@@ -799,8 +800,7 @@ case EXTERIOR_KERNEL_Y:
         str += "#endif // MULTI_GPU\n"
 
     block_str = ""
-    if twist: block_str += twisted()
-    block_str += xpay()
+    block_str += twisted_xpay()
     str += block( block_str )
     
     str += "\n\n"

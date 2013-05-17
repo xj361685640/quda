@@ -53,21 +53,13 @@
 #elif (DD_XPAY==1)
 #define DSLASH_XPAY
 #define DD_XPAY_F Xpay
-//#else
-//#define TWISTED_XPAY
-//#define DD_XPAY_F TwistedXpay
 #endif
 
 #if (DD_TWIST==0) // twisted input 
 #define DD_NAME_F twistedMassTwistInvDslash
 #define TWIST_INV_DSLASH
 #else
-//#if (DD_XPAY !=2)// twisted output
 #define DD_NAME_F twistedMassDslash
-//#define DSLASH_TWIST_INV
-//#else//normal wilson dslash
-//#define DD_NAME_F twistedMassDslashType2
-//#endif
 #endif
 //!
 
@@ -428,6 +420,74 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
 #endif
 
 }
+
+//NEW
+#if (DD_XPAY==1) && (DD_TWIST==1)
+#define TWIST_XPAY
+
+//redefine kernel name:
+#undef DD_NAME_F 
+#define DD_NAME_F twistedMassDslashTwist
+  
+template <KernelType kernel_type>
+__global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
+     (DD_PARAM1, DD_PARAM2, DD_PARAM3, DD_PARAM4) {
+
+#ifdef GPU_TWISTED_MASS_DIRAC
+
+#if (__COMPUTE_CAPABILITY__ >= 200 && defined(SHARED_WILSON_DSLASH)) // Fermi optimal code
+
+#if DD_DAG
+#include "tm_dslash_dagger_gt200_core.h"
+#else
+#include "tm_dslash_gt200_core.h"
+#endif
+
+#elif (__COMPUTE_CAPABILITY__ >= 120) // GT200 optimal code
+
+#if DD_DAG
+#include "tm_dslash_dagger_gt200_core.h"
+#else
+#include "tm_dslash_gt200_core.h"
+#endif
+
+#else  // fall-back is original G80 
+
+#if DD_DAG
+#include "tm_dslash_dagger_g80_core.h"
+#else
+#include "tm_dslash_g80_core.h"
+#endif
+
+#endif
+
+#endif
+
+}
+#undef TWIST_XPAY
+#endif //(DD_XPAY==0) && (DD_TWIST==1)
+
+
+//BEGIN DUMMY KERNEL (remove it later)
+#if (DD_XPAY==0) && (DD_TWIST==1)
+#define TWIST_XPAY
+
+//redefine kernel name:
+#undef DD_NAME_F 
+#define DD_NAME_F twistedMassDslashTwist
+  
+template <KernelType kernel_type>
+__global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
+     (DD_PARAM1, DD_PARAM2, DD_PARAM3, DD_PARAM4) {
+
+#ifdef GPU_TWISTED_MASS_DIRAC
+
+#endif
+
+}
+#undef TWIST_XPAY
+#endif //(DD_XPAY==0) && (DD_TWIST==1)
+//END DUMMY KERNEL
 
 #endif
 

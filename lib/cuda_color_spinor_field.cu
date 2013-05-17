@@ -632,7 +632,7 @@ namespace quda {
   void cudaColorSpinorField::packTwistedGhost(const QudaParity parity, const int dagger, double a, double b, cudaStream_t *stream) 
   {
 #ifdef MULTI_GPU
-    packTwistedFace(ghostFaceBuffer, *this, dagger, parity, *stream); 
+    packTwistedFace(ghostFaceBuffer, *this, dagger, parity, a, b, *stream); 
 #else
     errorQuda("packTwistedGhost not built on single-GPU build");
 #endif

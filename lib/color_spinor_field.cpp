@@ -22,7 +22,7 @@ namespace quda {
   ColorSpinorField::ColorSpinorField(const ColorSpinorParam &param) : verbose(param.verbose), init(false), 
 								     v(0), norm(0), even(0), odd(0) 
   {
-    create(param.nDim, param.x, param.nColor, param.nSpin, param.twistFlavor, param.twistPack, param.precision, param.pad, 
+    create(param.nDim, param.x, param.nColor, param.nSpin, param.twistFlavor, param.precision, param.pad, 
 	   param.siteSubset, param.siteOrder, param.fieldOrder, param.gammaBasis);
 
   }
@@ -30,7 +30,7 @@ namespace quda {
   ColorSpinorField::ColorSpinorField(const ColorSpinorField &field) : verbose(field.verbose), init(false),
 								     v(0), norm(0), even(0), odd(0)
   {
-    create(field.nDim, field.x, field.nColor, field.nSpin, field.twistFlavor, param.twistPack, field.precision, field.pad,
+    create(field.nDim, field.x, field.nColor, field.nSpin, field.twistFlavor, field.precision, field.pad,
 	   field.siteSubset, field.siteOrder, field.fieldOrder, field.gammaBasis);
 
   }
@@ -126,7 +126,7 @@ namespace quda {
 
   } // createGhostZone
 
-  void ColorSpinorField::create(int Ndim, const int *X, int Nc, int Ns, QudaTwistFlavorType Twistflavor, QudaTwistPackType   TwistPack,
+  void ColorSpinorField::create(int Ndim, const int *X, int Nc, int Ns, QudaTwistFlavorType Twistflavor, 
 				QudaPrecision Prec, int Pad, QudaSiteSubset siteSubset, 
 				QudaSiteOrder siteOrder, QudaFieldOrder fieldOrder, 
 				QudaGammaBasis gammaBasis) {
@@ -142,7 +142,6 @@ namespace quda {
     nColor = Nc;
     nSpin = Ns;
     twistFlavor = Twistflavor;
-    twistPack   = TwistPack;
 
     precision = Prec;
     volume = 1;
@@ -183,7 +182,7 @@ namespace quda {
 
   ColorSpinorField& ColorSpinorField::operator=(const ColorSpinorField &src) {
     if (&src != this) {
-      create(src.nDim, src.x, src.nColor, src.nSpin, src.twistFlavor, src.twistPack,
+      create(src.nDim, src.x, src.nColor, src.nSpin, src.twistFlavor, 
 	     src.precision, src.pad, src.siteSubset, 
 	     src.siteOrder, src.fieldOrder, src.gammaBasis);    
     }
@@ -196,7 +195,6 @@ namespace quda {
     if (param.nColor != 0) nColor = param.nColor;
     if (param.nSpin != 0) nSpin = param.nSpin;
     if (param.twistFlavor != QUDA_TWIST_INVALID) twistFlavor = param.twistFlavor;
-    if (param.twistPack != QUDA_TWIST_PACK_INVALID) twistPack = param.twistPack;
 
     if (param.precision != QUDA_INVALID_PRECISION)  precision = param.precision;
     if (param.nDim != 0) nDim = param.nDim;
@@ -251,7 +249,6 @@ namespace quda {
     param.nColor = nColor;
     param.nSpin = nSpin;
     param.twistFlavor = twistFlavor;
-    param.twistPack = twistPack;
     param.precision = precision;
     param.nDim = nDim;
     memcpy(param.x, x, QUDA_MAX_DIM*sizeof(int));
@@ -334,7 +331,6 @@ namespace quda {
     out << "nColor = " << a.nColor << std::endl;
     out << "nSpin = " << a.nSpin << std::endl;
     out << "twistFlavor = " << a.twistFlavor << std::endl;
-    out << "twistPack = " << a.twistPack << std::endl;
     out << "nDim = " << a.nDim << std::endl;
     for (int d=0; d<a.nDim; d++) out << "x[" << d << "] = " << a.x[d] << std::endl;
     out << "volume = " << a.volume << std::endl;
