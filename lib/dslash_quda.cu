@@ -912,19 +912,7 @@ namespace quda {
 	reconstruct(reconstruct), dslashType(dslashType), dagger(dagger)
     { 
       bindSpinorTex<sFloat>(in, out, x); 
-
-/*
-      if((in->TwistFlavor() == QUDA_TWIST_PLUS) || (in->TwistFlavor() == QUDA_TWIST_MINUS))
-      {
-        setTwistParam(a, b, kappa, mu, dagger, QUDA_TWIST_GAMMA5_INVERSE);
-        if (x) b *= epsilon; //reuse this parameter for degenerate twisted mass 
-        c = 0;
-      }
-      else{//twist doublet:
-        a = kappa, b = mu, c = epsilon, d = k;
-      }
-*/    
-      a = dagger ? -kappa: kappa;
+      a = kappa;
       b = mu;
       c = epsilon;
       d = k;
