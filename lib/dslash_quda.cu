@@ -1204,12 +1204,13 @@ namespace quda {
       if (dslashParam.commDim[i] && (i!=3 || kernelPackT)) { pack = true; break; }
 
     // Initialize pack from source spinor
-    if(!twistPack)
+    if(!twistPack){
 	PROFILE(face->pack(*inSpinor, 1-parity, dagger, streams), 
 	    profile, QUDA_PROFILE_PACK_KERNEL);
-    else	
+    }else{	
         PROFILE(face->pack(*inSpinor, 1-parity, dagger, twist_a, twist_b, streams), 
 	    profile, QUDA_PROFILE_PACK_KERNEL);
+    }
 
     if (pack) {
       // Record the end of the packing
@@ -1509,6 +1510,7 @@ namespace quda {
 
     if(type == QUDA_DEG_TWIST_INV_DSLASH){
         setTwistPack(true);
+	setKernelPackT(true);
         twist_a = kappa; 
         twist_b = mu;
     }
@@ -1540,9 +1542,12 @@ namespace quda {
 
     delete dslash;
 
-    setTwistPack(false);
-    twist_a = 0.0; 
-    twist_b = 0.0;
+    if(type == QUDA_DEG_TWIST_INV_DSLASH){
+        setTwistPack(false);
+	setKernelPackT(false);
+        twist_a = 0.0; 
+        twist_b = 0.0;
+    }
 
     unbindGaugeTex(gauge);
 

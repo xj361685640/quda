@@ -85,6 +85,8 @@ namespace quda {
   // face packing routines
   void packFace(void *ghost_buf, cudaColorSpinorField &in, const int dagger, const int parity, const cudaStream_t &stream);
 
+  void packTwistedFace(void *ghost_buf, cudaColorSpinorField &in, const int dagger, const int parity, double a, double b, const cudaStream_t &stream);
+
 }
 
 #endif // _DSLASH_QUDA_H

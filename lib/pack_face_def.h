@@ -1018,8 +1018,8 @@ __global__ void packFaceWilsonKernel(PackParam<FloatN> param)
 #define WRITE_HALF_SPINOR WRITE_HALF_SPINOR_DOUBLE2
 #define SPINOR_DOUBLE
 template <int dim, int dagger, int face_num>
-static inline __device__ void packTwistedFaceWilsonCore(double2 *out, float *outNorm, const double2 *in, double a, double b, 
-						 const float *inNorm, const int &idx, 
+static inline __device__ void packTwistedFaceWilsonCore(double2 *out, float *outNorm, const double2 *in, 
+						 const float *inNorm, double a, double b, const int &idx, 
 						 const int &face_idx, const int &face_volume, 
 						 PackParam<double2> &param)
 {
@@ -1101,7 +1101,7 @@ static inline __device__ void packTwistedFaceWilsonCore(short4 *out, float *outN
     if (dagger) {
 #include "wilson_pack_twisted_face_dagger_core.h"
     } else {
-#include "wilson_pack_twsited_face_core.h"
+#include "wilson_pack_twisted_face_core.h"
     }
 }
 #undef READ_SPINOR
@@ -1141,12 +1141,12 @@ __global__ void packTwistedFaceWilsonKernel(Float a, Float b, PackParam<FloatN> 
   } else if (dim == 1) {
     if (face_num == 0) {
       const int idx = indexFromFaceIndex<1,nFace,0>(face_idx,ghostFace[1],param.parity);
-      packTwistedFaceWilsonCore<1, dagger,0>(param.out[2], param.outNorm[2], param.in, a, b,
-				    param.inNorm,idx, face_idx, ghostFace[1], param);
+      packTwistedFaceWilsonCore<1, dagger,0>(param.out[2], param.outNorm[2], param.in, 
+				    param.inNorm, a, b, idx, face_idx, ghostFace[1], param);
     } else {
       const int idx = indexFromFaceIndex<1,nFace,1>(face_idx,ghostFace[1],param.parity);
       packTwistedFaceWilsonCore<1, dagger,1>(param.out[3], param.outNorm[3], param.in, 
-				    param.inNorm, a, b,idx, face_idx, ghostFace[1], param);
+				    param.inNorm, a, b, idx, face_idx, ghostFace[1], param);
     }
   } else if (dim == 2) {
     if (face_num == 0) {
@@ -1353,19 +1353,19 @@ void packFaceWilson(void *ghost_buf, cudaColorSpinorField &in, const int dagger,
   switch(in.Precision()) {
   case QUDA_DOUBLE_PRECISION:
     {
-      PackFaceWilson<double2> pack((double2*)ghost_buf, &in, dagger, parity);
+      PackFaceWilson<double2, double> pack((double2*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_SINGLE_PRECISION:
     {
-      PackFaceWilson<float4> pack((float4*)ghost_buf, &in, dagger, parity);
+      PackFaceWilson<float4, float> pack((float4*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_HALF_PRECISION:
     {
-      PackFaceWilson<short4> pack((short4*)ghost_buf, &in, dagger, parity);
+      PackFaceWilson<short4, float> pack((short4*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
@@ -1379,19 +1379,19 @@ void packTwistedFaceWilson(void *ghost_buf, cudaColorSpinorField &in, const int 
   switch(in.Precision()) {
   case QUDA_DOUBLE_PRECISION:
     {
-      PackFaceWilson<double2> pack((double2*)ghost_buf, &in, dagger, parity);
+      PackFaceWilson<double2, double> pack((double2*)ghost_buf, &in, dagger, parity);
       pack.apply_twisted((double)a, (double)b, stream);
     }
     break;
   case QUDA_SINGLE_PRECISION:
     {
-      PackFaceWilson<float4> pack((float4*)ghost_buf, &in, dagger, parity);
+      PackFaceWilson<float4, float> pack((float4*)ghost_buf, &in, dagger, parity);
       pack.apply_twisted((float)a, (float)b, stream);
     }
     break;
   case QUDA_HALF_PRECISION:
     {
-      PackFaceWilson<short4> pack((short4*)ghost_buf, &in, dagger, parity);
+      PackFaceWilson<short4, float> pack((short4*)ghost_buf, &in, dagger, parity);
       pack.apply_twisted((float)a, (float)b, stream);
     }
     break;
@@ -1859,15 +1859,15 @@ void packTwistedFace(void *ghost_buf, cudaColorSpinorField &in, const int dagger
   int nDimPack = 0;
   for (int dim=0; dim<4; dim++) {
     if(!dslashParam.commDim[dim]) continue;
-    if (dim != 3 || getKernelPackT()) nDimPack++;
+    //if (dim != 3 || getKernelPackT()) nDimPack++;
   }
   if (!nDimPack) return; // if zero then we have nothing to pack 
 
   // Need to update this logic for other multi-src dslash packing
-  if(in.TwistFlavor() != QUDA_TWIST_INVALID) {
+  if(in.TwistFlavor() == QUDA_TWIST_PLUS || in.TwistFlavor() == QUDA_TWIST_MINUS) {
     packTwistedFaceWilson(ghost_buf, in, dagger, parity, a, b, stream);
   } else {
-    errorQuda("Cannot performed twisted packing for the spinor.");
+    errorQuda("Cannot perform twisted packing for the spinor.");
   }
 
 }
