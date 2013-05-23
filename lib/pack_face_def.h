@@ -1176,7 +1176,7 @@ __global__ void packTwistedFaceWilsonKernel(Float a, Float b, PackParam<FloatN> 
 
 
 
-template <typename FloatN>
+template <typename FloatN, typename Float>
 class PackFace : public Tunable {
 
  protected:
@@ -1187,11 +1187,12 @@ class PackFace : public Tunable {
   const int nFace;
 
   // compute how many threads we need in total for the face packing
+
   unsigned int threads() const {
     unsigned int threads = 0;
     for (int i=0; i<4; i++) {
       if (!dslashParam.commDim[i]) continue;
-      if (i==3 && !kernelPackT) continue; 
+      if ((i==3 && !(kernelPackT || twistPack))) continue; 
       threads += 2*nFace*in->GhostFace()[i]; // 2 for forwards and backwards faces
     }
     return threads;
@@ -1276,6 +1277,7 @@ class PackFace : public Tunable {
   }  
   
   virtual void apply(const cudaStream_t &stream) = 0;
+  virtual void apply_twisted(Float a, Float b, const cudaStream_t &stream) = 0;//for twisted mass only
 
   virtual void initTuneParam(TuneParam &param) const
   {
@@ -1299,7 +1301,7 @@ class PackFace : public Tunable {
 };
 
 template <typename FloatN, typename Float>
-class PackFaceWilson : public PackFace<FloatN> {
+class PackFaceWilson : public PackFace<FloatN, Float> {
 
  private:
 
@@ -1309,7 +1311,7 @@ class PackFaceWilson : public PackFace<FloatN> {
  public:
   PackFaceWilson(FloatN *faces, const cudaColorSpinorField *in, 
 		 const int dagger, const int parity)
-    : PackFace<FloatN>(faces, in, dagger, parity, 1) { }
+    : PackFace<FloatN, Float>(faces, in, dagger, parity, 1) { }
   virtual ~PackFaceWilson() { }
   
   void apply(const cudaStream_t &stream) {
@@ -1327,7 +1329,6 @@ class PackFaceWilson : public PackFace<FloatN> {
 #endif  
   }
 
-//!0513
   void apply_twisted(Float a, Float b, const cudaStream_t &stream) {
     TuneParam tp = tuneLaunch(*this, dslashTuning, verbosity);
 
@@ -1533,8 +1534,8 @@ __global__ void packFaceAsqtadKernel(PackParam<FloatN> param)
 #endif // GPU_STAGGERED_DIRAC
 
 
-template <typename FloatN>
-class PackFaceAsqtad : public PackFace<FloatN> {
+template <typename FloatN, typename Float>
+class PackFaceAsqtad : public PackFace<FloatN, Float> {
 
  private:
 
@@ -1544,7 +1545,7 @@ class PackFaceAsqtad : public PackFace<FloatN> {
  public:
   PackFaceAsqtad(FloatN *faces, const cudaColorSpinorField *in, 
 		 const int dagger, const int parity)
-    : PackFace<FloatN>(faces, in, dagger, parity, 3) { }
+    : PackFace<FloatN, Float>(faces, in, dagger, parity, 3) { }
   virtual ~PackFaceAsqtad() { }
   
   void apply(const cudaStream_t &stream) {
@@ -1558,6 +1559,8 @@ class PackFaceAsqtad : public PackFace<FloatN> {
 #endif  
   }
 
+  void apply_twisted(Float a, Float b, const cudaStream_t &stream) {}
+
   long long flops() const { return 0; }
 };
 
@@ -1567,19 +1570,19 @@ void packFaceAsqtad(void *ghost_buf, cudaColorSpinorField &in, const int dagger,
   switch(in.Precision()) {
   case QUDA_DOUBLE_PRECISION:
     {
-      PackFaceAsqtad<double2> pack((double2*)ghost_buf, &in, dagger, parity);
+      PackFaceAsqtad<double2, double> pack((double2*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_SINGLE_PRECISION:
     {
-      PackFaceAsqtad<float2> pack((float2*)ghost_buf, &in, dagger, parity);
+      PackFaceAsqtad<float2, float> pack((float2*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_HALF_PRECISION:
     {
-      PackFaceAsqtad<short2> pack((short2*)ghost_buf, &in, dagger, parity);
+      PackFaceAsqtad<short2, float> pack((short2*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
@@ -1651,8 +1654,8 @@ __global__ void packFaceDWKernel(PackParam<FloatN> param)
 }
 #endif
 
-template <typename FloatN>
-class PackFaceDW : public PackFace<FloatN> {
+template <typename FloatN, typename Float>
+class PackFaceDW : public PackFace<FloatN, Float> {
 
  private:
 
@@ -1662,7 +1665,7 @@ class PackFaceDW : public PackFace<FloatN> {
  public:
   PackFaceDW(FloatN *faces, const cudaColorSpinorField *in, 
 	     const int dagger, const int parity)
-    : PackFace<FloatN>(faces, in, dagger, parity, 1) { }
+    : PackFace<FloatN, Float>(faces, in, dagger, parity, 1) { }
   virtual ~PackFaceDW() { }
   
   void apply(const cudaStream_t &stream) {
@@ -1680,6 +1683,8 @@ class PackFaceDW : public PackFace<FloatN> {
 #endif  
   }
 
+  void apply_twisted(Float a, Float b, const cudaStream_t &stream) {}
+
   long long flops() const { return outputPerSite()*this->threads(); }
 };
 
@@ -1689,19 +1694,19 @@ void packFaceDW(void *ghost_buf, cudaColorSpinorField &in, const int dagger,
   switch(in.Precision()) {
   case QUDA_DOUBLE_PRECISION:
     {
-      PackFaceDW<double2> pack((double2*)ghost_buf, &in, dagger, parity);
+      PackFaceDW<double2, double> pack((double2*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_SINGLE_PRECISION:
     {
-      PackFaceDW<float4> pack((float4*)ghost_buf, &in, dagger, parity);
+      PackFaceDW<float4, float> pack((float4*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_HALF_PRECISION:
     {
-      PackFaceDW<short4> pack((short4*)ghost_buf, &in, dagger, parity);
+      PackFaceDW<short4, float> pack((short4*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
@@ -1773,8 +1778,8 @@ __global__ void packFaceNdegTMKernel(PackParam<FloatN> param)
 }
 #endif
 
-template <typename FloatN>
-class PackFaceNdegTM : public PackFace<FloatN> {
+template <typename FloatN, typename Float>
+class PackFaceNdegTM : public PackFace<FloatN, Float> {
 
  private:
 
@@ -1784,7 +1789,7 @@ class PackFaceNdegTM : public PackFace<FloatN> {
  public:
   PackFaceNdegTM(FloatN *faces, const cudaColorSpinorField *in, 
 		 const int dagger, const int parity)
-    : PackFace<FloatN>(faces, in, dagger, parity, 1) { }
+    : PackFace<FloatN, Float>(faces, in, dagger, parity, 1) { }
   virtual ~PackFaceNdegTM() { }
   
   void apply(const cudaStream_t &stream) {    
@@ -1802,6 +1807,8 @@ class PackFaceNdegTM : public PackFace<FloatN> {
 #endif  
   }
 
+  void apply_twisted(Float a, Float b, const cudaStream_t &stream) {}
+
   long long flops() const { return outputPerSite()*this->threads(); }
 
 };
@@ -1812,19 +1819,19 @@ void packFaceNdegTM(void *ghost_buf, cudaColorSpinorField &in, const int dagger,
   switch(in.Precision()) {
   case QUDA_DOUBLE_PRECISION:
     {
-      PackFaceNdegTM<double2> pack((double2*)ghost_buf, &in, dagger, parity);
+      PackFaceNdegTM<double2, double> pack((double2*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_SINGLE_PRECISION:
     {
-      PackFaceNdegTM<float4> pack((float4*)ghost_buf, &in, dagger, parity);
+      PackFaceNdegTM<float4, float> pack((float4*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
   case QUDA_HALF_PRECISION:
     {
-      PackFaceNdegTM<short4> pack((short4*)ghost_buf, &in, dagger, parity);
+      PackFaceNdegTM<short4, float> pack((short4*)ghost_buf, &in, dagger, parity);
       pack.apply(stream);
     }
     break;
@@ -1859,7 +1866,7 @@ void packTwistedFace(void *ghost_buf, cudaColorSpinorField &in, const int dagger
   int nDimPack = 0;
   for (int dim=0; dim<4; dim++) {
     if(!dslashParam.commDim[dim]) continue;
-    //if (dim != 3 || getKernelPackT()) nDimPack++;
+    nDimPack++;
   }
   if (!nDimPack) return; // if zero then we have nothing to pack 
 

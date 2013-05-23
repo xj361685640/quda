@@ -24,6 +24,16 @@ namespace quda {
    */
   bool getKernelPackT();
 
+  /**
+     @param pack Sets whether to use a kernel to pack twisted spinor
+   */
+  void setTwistPack(bool pack);
+
+  /**
+     @return Whether a kernel requires twisted pack or not
+   */
+  bool getTwistPack();
+
   void setFace(const FaceBuffer &face);
 
   bool getDslashLaunch();

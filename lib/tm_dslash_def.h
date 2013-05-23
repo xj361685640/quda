@@ -165,7 +165,7 @@
 
 #if (DD_PREC==0) // double-precision fields
 
-#define TPROJSCALE tProjScale
+//#define TPROJSCALE tProjScale
 
 // double-precision gauge field
 #if (defined DIRECT_ACCESS_LINK) || (defined FERMI_NO_DBLE_TEX)
@@ -214,7 +214,6 @@
 #endif
 #define WRITE_SPINOR WRITE_SPINOR_DOUBLE2
 #define SPINOR_DOUBLE
-//!0513
 #if (DD_XPAY!=0)
 #if (defined DIRECT_ACCESS_WILSON_ACCUM) || (defined FERMI_NO_DBLE_TEX)
 #define ACCUMTEX x
@@ -234,7 +233,7 @@
 
 #elif (DD_PREC==1) // single-precision fields
 
-#define TPROJSCALE tProjScale_f
+//#define TPROJSCALE tProjScale_f
 
 // single-precision gauge field
 #ifdef DIRECT_ACCESS_LINK
@@ -286,7 +285,6 @@
 #endif // USE_TEXTURE_OBJECTS
 #endif
 #define WRITE_SPINOR WRITE_SPINOR_FLOAT4
-//!0513
 #if (DD_XPAY!=0)
 #ifdef DIRECT_ACCESS_WILSON_ACCUM
 #define ACCUMTEX x
@@ -305,7 +303,7 @@
 
 #else             // half-precision fields
 
-#define TPROJSCALE tProjScale_f
+//#define TPROJSCALE tProjScale_f
 
 // half-precision gauge field
 #ifdef DIRECT_ACCESS_LINK
@@ -527,7 +525,7 @@ __global__ void	DD_FUNC(DD_NAME_F, DD_RECON_F, DD_DAG_F, DD_XPAY_F)
 
 #undef SPINOR_HOP
 
-#undef TPROJSCALE
+//#undef TPROJSCALE
 
 // prepare next set of options, or clean up after final iteration
 

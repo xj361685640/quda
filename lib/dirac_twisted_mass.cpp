@@ -23,14 +23,14 @@ namespace quda {
   void DiracTwistedMass::initConstants(const cudaColorSpinorField &a) const {
 
     if (a.SiteSubset() == QUDA_PARITY_SITE_SUBSET && initTMFlag != 1) {
-      int stride = (a.TwistFlavor() != QUDA_TWIST_PLUS || a.TwistFlavor() != QUDA_TWIST_MINUS) ? a.VolumeCB()/2 : a.VolumeCB();
+      int flavor_stride = (a.TwistFlavor() != QUDA_TWIST_PLUS || a.TwistFlavor() != QUDA_TWIST_MINUS) ? a.VolumeCB()/2 : a.VolumeCB();
       initSpinorConstants(a, profile);
-      initTwistedMassConstants(stride, profile);
+      initTwistedMassConstants(flavor_stride, profile);
       initTMFlag = 1;
     } else if (a.SiteSubset() == QUDA_FULL_SITE_SUBSET && initTMFlag != 2) {
-      int stride = (a.TwistFlavor() != QUDA_TWIST_PLUS || a.TwistFlavor() != QUDA_TWIST_MINUS) ? a.VolumeCB()/2 : a.VolumeCB();
+      int flavor_stride = (a.TwistFlavor() != QUDA_TWIST_PLUS || a.TwistFlavor() != QUDA_TWIST_MINUS) ? a.VolumeCB()/4 : a.VolumeCB()/2;
       initSpinorConstants(a, profile);
-      initTwistedMassConstants(stride, profile);
+      initTwistedMassConstants(flavor_stride, profile);
       initTMFlag = 2;
     }
 

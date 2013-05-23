@@ -1201,7 +1201,7 @@ namespace quda {
 
     bool pack = false;
     for (int i=3; i>=0; i--) 
-      if (dslashParam.commDim[i] && (i!=3 || kernelPackT)) { pack = true; break; }
+      if (dslashParam.commDim[i] && (i!=3 || kernelPackT || twistPack)) { pack = true; break; }
 
     // Initialize pack from source spinor
     if(!twistPack){
@@ -1222,7 +1222,7 @@ namespace quda {
       if (!dslashParam.commDim[i]) continue;
 
       for (int dir=1; dir>=0; dir--) {
-	cudaEvent_t &event = (i!=3 || getKernelPackT()) ? packEnd[0] : dslashStart;
+	cudaEvent_t &event = (i!=3 || getKernelPackT() || getTwistPack()) ? packEnd[0] : dslashStart;
 
 	PROFILE(cudaStreamWaitEvent(streams[2*i+dir], event, 0), 
 		profile, QUDA_PROFILE_STREAM_WAIT_EVENT);
@@ -1510,7 +1510,7 @@ namespace quda {
 
     if(type == QUDA_DEG_TWIST_INV_DSLASH){
         setTwistPack(true);
-	setKernelPackT(true);
+	//setKernelPackT(true);
         twist_a = kappa; 
         twist_b = mu;
     }
@@ -1544,7 +1544,7 @@ namespace quda {
 
     if(type == QUDA_DEG_TWIST_INV_DSLASH){
         setTwistPack(false);
-	setKernelPackT(false);
+	//setKernelPackT(false);
         twist_a = 0.0; 
         twist_b = 0.0;
     }
