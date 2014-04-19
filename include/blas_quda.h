@@ -39,6 +39,8 @@ namespace quda {
   void axpyCuda(const double &a, cudaColorSpinorField &x, cudaColorSpinorField &y);
   void axCuda(const double &a, cudaColorSpinorField &x);
   void xpyCuda(cudaColorSpinorField &x, cudaColorSpinorField &y);
+  void xpy_kahan_x_Cuda(cudaColorSpinorField &x, cudaColorSpinorField &y);
+  
   void xpayCuda(cudaColorSpinorField &x, const double &a, cudaColorSpinorField &y);
   void mxpyCuda(cudaColorSpinorField &x, cudaColorSpinorField &y);
 

@@ -88,6 +88,7 @@ namespace quda {
   */
   template <typename Float2, typename FloatN>
   struct xpy {
+
     xpy(const Float2 &a, const Float2 &b, const Float2 &c) { ; }
     __device__ void operator()(const FloatN &x, FloatN &y, const FloatN &z, const FloatN &w) { y += x ; }
     static int streams() { return 3; } //! total number of input and output streams
@@ -97,6 +98,31 @@ namespace quda {
   void xpyCuda(cudaColorSpinorField &x, cudaColorSpinorField &y) {
     blasCuda<xpy,0,1,0,0>(make_double2(1.0, 0.0), make_double2(1.0, 0.0), make_double2(0.0, 0.0), 
 			  x, y, x, x);
+  }
+
+
+/** 
+Functor to perform the operation y+=x, x=Kahan c
+**/
+
+  template <typename Float2, typename FloatN>
+  struct xpy_kahan_x {
+     
+    xpy_kahan_x(const Float2 &a, const Float2 &b, const Float2 &c) { ; }
+    __device__ void operator()( FloatN &x, FloatN &y, const FloatN &z, const FloatN &w) {
+      // x already started with -c
+      const FloatN t = y + x;
+      const FloatN c= ( (t-y) - x );
+      y = t;
+      z = -c;
+     }
+    static int streams() { return 3; } //! total number of input and output streams
+    static int flops() { return 1; } //! flops per element
+  };
+
+  void xpy_kahan_x_Cuda(cudaColorSpinorField &x, cudaColorSpinorField &y) {
+    blasCuda<xpy_kahan_x,1,1,0,0>(make_double2(1.0, 0.0), make_double2(1.0, 0.0), make_double2(0.0, 0.0), 
+        x, y, x, x);
   }
 
   /**

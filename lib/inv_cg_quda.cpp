@@ -197,12 +197,27 @@ namespace quda {
 	axpyCuda(alpha, p, xSloppy);
 	copyCuda(x, xSloppy); // nop when these pointers alias
       
+#define kahan_cuda
+#ifdef kahan_cuda
+  xpy_kahan_x_Cuda(x,y);
+  mat(r, y, tmp); // here we can use x as tmp
+#else    
 	xpyCuda(x, y); // swap these around?
 	mat(r, y, x); // here we can use x as tmp
+#endif
+
 	r2 = xmyNormCuda(b, r);
 
 	copyCuda(rSloppy, r); //nop when these pointers alias
+
+#ifdef kahan_cuda
+  copyCuda(xSloppy,x);
 	zeroCuda(xSloppy);
+#else	
+    zeroCuda(xSloppy);
+#endif
+
+
 
 	// break-out check if we have reached the limit of the precision
 	static int resIncrease = 0;
