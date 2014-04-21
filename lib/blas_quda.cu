@@ -114,7 +114,7 @@ Functor to perform the operation y+=x, x=Kahan c
       const FloatN t = y + x;
       const FloatN c= ( (t-y) - x );
       y = t;
-      z = -c;
+      x = -c;
      }
     static int streams() { return 3; } //! total number of input and output streams
     static int flops() { return 1; } //! flops per element

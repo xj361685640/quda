@@ -200,7 +200,7 @@ namespace quda {
 #define kahan_cuda
 #ifdef kahan_cuda
   xpy_kahan_x_Cuda(x,y);
-  mat(r, y, tmp); // here we can use x as tmp
+  mat(r, y, tmp); // here we cannot use x as tmp
 #else    
 	xpyCuda(x, y); // swap these around?
 	mat(r, y, x); // here we can use x as tmp
@@ -212,7 +212,7 @@ namespace quda {
 
 #ifdef kahan_cuda
   copyCuda(xSloppy,x);
-	zeroCuda(xSloppy);
+	//zeroCuda(xSloppy);
 #else	
     zeroCuda(xSloppy);
 #endif
