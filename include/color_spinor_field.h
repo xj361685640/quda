@@ -190,6 +190,7 @@ namespace quda {
       static void checkField(const ColorSpinorField &, const ColorSpinorField &);
       void clearGhostPointers();
 
+
     public:
       //ColorSpinorField();
       ColorSpinorField(const ColorSpinorField &);
@@ -267,6 +268,12 @@ namespace quda {
    void *my_back_norm_face[QUDA_MAX_DIM];
    void *from_fwd_norm_face[QUDA_MAX_DIM];
    void *from_back_norm_face[QUDA_MAX_DIM];
+
+   MsgHandle ***mh_recv_norm_fwd;
+   MsgHandle ***mh_recv_norm_back;
+   MsgHandle ***mh_send_norm_fwd;
+   MsgHandle ***mh_send_norm_back;
+
 #endif
 
     bool reference; // whether the field is a reference or not
@@ -380,8 +387,13 @@ namespace quda {
         const int dim, const QudaDirection dir, const int dagger, cudaStream_t* stream);
 
 
+    void streamInit(cudaStream_t *stream_p);
 
+    void pack(int nFace, int parity, int dagger, int stream_idx, bool zeroCopyPack, 
+              double a=0, double b=0);
 
+    void pack(FullClover &clov, FullClover &clovInv, int nFace, int parity, int dagger,
+	      int stream_idx, bool zeroCopyPack, double a=0);
 
     void pack(int nFace, int parity, int dagger, cudaStream_t *stream_p, bool zeroCopyPack,
 	      double a=0, double b=0);

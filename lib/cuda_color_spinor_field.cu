@@ -769,8 +769,6 @@ namespace quda {
 #ifdef GPU_COMMS
       bool comms = false;
       for (int i=0; i<nDimComms; i++) if (commDimPartitioned(i)) comms = true;
-      if (comms && precision == QUDA_HALF_PRECISION)
-	errorQuda("GPU-aware communication not yet supported with half precision");
 #endif
 
       if (nFace > maxNface) 
@@ -813,6 +811,13 @@ namespace quda {
 	size_t offset2 = precision*(length + ghostOffset[i]*nColor*nSpin*2);
 	my_back_face[i] = backGhostFaceBuffer[i];
 	from_back_face[i] = static_cast<char*>(v) + offset2;
+	
+	if(precision == QUDA_HALF_PRECISION){
+	  int norm_offset = stride + ghostNormOffset[i];
+	  my_back_norm_face[i]  = static_cast<char*>(backGhostFaceBuffer[i]) + nFace*ghostFace[i]*Ndof*precision;
+	  from_back_norm_face[i] = static_cast<char*>(norm) + norm_offset*sizeof(float); 
+	}
+
 #else
 	my_back_face[i] = static_cast<char*>(my_face) + offset;
 	from_back_face[i] = static_cast<char*>(from_face) + offset;
@@ -822,7 +827,13 @@ namespace quda {
 #ifdef GPU_COMMS
 	offset2 += nFace*ghostFace[i]*Ndof*precision;
 	my_fwd_face[i] = fwdGhostFaceBuffer[i];	
-	from_fwd_face[i] = /*static_cast<char*>(ghost[i]) + nFace*ghostFace[i]*Ndof*precision; //*/static_cast<char*>(v) + offset2;
+	from_fwd_face[i] = /*static_cast<char*>(ghost[i]) + nFace*ghostFace[i]*Ndof*precision;*/static_cast<char*>(v) + offset2;
+
+	if(precision == QUDA_HALF_PRECISION){
+	  int norm_offset = stride + ghostNormOffset[i] + nFace*ghostFace[i];
+	  my_fwd_norm_face[i] = static_cast<char*>(fwdGhostFaceBuffer[i]) + nFace*ghostFace[i]*Ndof*precision;
+	  from_fwd_norm_face[i] = static_cast<char*>(norm) + norm_offset*sizeof(float);
+	}
 #else
 	my_fwd_face[i] = static_cast<char*>(my_face) + offset;
 	from_fwd_face[i] = static_cast<char*>(from_face) + offset;
@@ -836,23 +847,53 @@ namespace quda {
       mh_send_back = new MsgHandle**[maxNface];
       mh_recv_fwd = new MsgHandle**[maxNface];
       mh_recv_back = new MsgHandle**[maxNface];
+#ifdef GPU_COMMS
+      if(precision == QUDA_HALF_PRECISION){
+      	mh_send_norm_fwd  = new MsgHandle**[maxNface];
+      	mh_send_norm_back = new MsgHandle**[maxNface];
+     	mh_recv_norm_fwd  = new MsgHandle**[maxNface];
+      	mh_recv_norm_back = new MsgHandle**[maxNface]; 
+      }
+#endif
       for (int j=0; j<maxNface; j++) {
 	mh_send_fwd[j] = new MsgHandle*[2*nDimComms];
 	mh_send_back[j] = new MsgHandle*[2*nDimComms];
 	mh_recv_fwd[j] = new MsgHandle*[nDimComms];
 	mh_recv_back[j] = new MsgHandle*[nDimComms];
 
+		
+#ifdef GPU_COMMS
+	if(precision == QUDA_HALF_PRECISION){
+	  mh_send_norm_fwd[j] = new MsgHandle*[2*nDimComms];
+	  mh_send_norm_back[j] = new MsgHandle*[2*nDimComms];
+	  mh_recv_norm_fwd[j] = new MsgHandle*[nDimComms];
+	  mh_recv_norm_back[j] = new MsgHandle*[nDimComms];
+	}
+#endif	
+
+
 	for (int i=0; i<nDimComms; i++) {
-	  size_t nbytes_Nface = (nbytes[i] / maxNface) * (j+1);
 	  if (!commDimPartitioned(i)) continue;
 #ifdef GPU_COMMS
+	  size_t nbytes_Nface = surfaceCB[i]*Ndof*precision * (j+1);
 	  if (i != 3 || getKernelPackT()) {
+#else 
+	  size_t nbytes_Nface = (nbytes[i] / maxNface) * (j+1);
 #endif
 	    mh_send_fwd[j][2*i+0] = comm_declare_send_relative(my_fwd_face[i], i, +1, nbytes_Nface);
 	    mh_send_back[j][2*i+0] = comm_declare_send_relative(my_back_face[i], i, -1, nbytes_Nface);
 	    mh_send_fwd[j][2*i+1] = mh_send_fwd[j][2*i]; // alias pointers
 	    mh_send_back[j][2*i+1] = mh_send_back[j][2*i]; // alias pointers
+
 #ifdef GPU_COMMS
+	    if(precision == QUDA_HALF_PRECISION){
+	      mh_send_norm_fwd[j][2*i+0] = comm_declare_send_relative(my_fwd_norm_face[i], i, +1, surfaceCB[i]*(j+1)*sizeof(float)); 
+	      mh_send_norm_back[j][2*i+0] = comm_declare_send_relative(my_back_norm_face[i], i, -1, surfaceCB[i]*(j+1)*sizeof(float));
+	      mh_send_norm_fwd[j][2*i+1] = mh_send_norm_fwd[j][2*i];
+	      mh_send_norm_back[j][2*i+1] = mh_send_norm_back[j][2*i]; 	
+	    }
+
+
 	  } else { 
 	    /* 
 	       use a strided communicator, here we can't really use
@@ -911,10 +952,18 @@ namespace quda {
 	      mh_send_back[j][2*i+1] = mh_send_back[j][2*i+0];
 	    }
 	  }
+
+	  if(precision == QUDA_HALF_PRECISION){
+	    mh_recv_norm_fwd[j][i] = comm_declare_receive_relative(from_fwd_norm_face[i], i, +1, surfaceCB[i]*sizeof(float)*(j+1));
+	    mh_recv_norm_back[j][i] = comm_declare_receive_relative(from_back_norm_face[i], i, -1, surfaceCB[i]*sizeof(float)*(j+1));
+	  }
 #endif // GPU_COMMS
 
 	  mh_recv_fwd[j][i] = comm_declare_receive_relative(from_fwd_face[i], i, +1, nbytes_Nface);
 	  mh_recv_back[j][i] = comm_declare_receive_relative(from_back_face[i], i, -1, nbytes_Nface);
+
+	 
+
 
 	} // loop over dimension
       }
@@ -936,6 +985,13 @@ namespace quda {
 	    comm_free(mh_send_back[j][2*i]);
 	    // only in a special case are these not aliasing pointers
 #ifdef GPU_COMMS
+	    if(precision == QUDA_HALF_PRECISION){
+	      comm_free(mh_recv_norm_fwd[j][i]);
+	      comm_free(mh_recv_norm_back[j][i]);
+	      comm_free(mh_send_norm_fwd[j][2*i]);
+	      comm_free(mh_send_norm_back[j][2*i]);
+	    }
+
 	    if (i == 3 && !getKernelPackT() && nSpin == 4) {
 	      comm_free(mh_send_fwd[j][2*i+1]);
 	      comm_free(mh_send_back[j][2*i+1]);
@@ -947,6 +1003,14 @@ namespace quda {
 	delete []mh_recv_back[j];
 	delete []mh_send_fwd[j];
 	delete []mh_send_back[j];
+#ifdef GPU_COMMS
+	if(precision == QUDA_HALF_PRECISION){
+	  delete []mh_recv_norm_fwd[j];
+	  delete []mh_recv_norm_back[j];
+	  delete []mh_send_norm_fwd[j];
+	  delete []mh_send_norm_back[j];
+	}
+#endif
       }    
       delete []mh_recv_fwd;
       delete []mh_recv_back;
@@ -959,11 +1023,30 @@ namespace quda {
 	from_fwd_face[i] = NULL;
 	from_back_face[i] = NULL;      
       }
-      
+#ifdef GPU_COMMS
+      if(precision == QUDA_HALF_PRECISION){
+	delete []mh_recv_norm_fwd;
+	delete []mh_recv_norm_back;
+	delete []mh_send_norm_fwd;
+	delete []mh_send_norm_back;
+      }
+	
+      for(int i=0; i<nDimComms; i++){
+	my_fwd_norm_face[i] = NULL;
+	my_back_norm_face[i] = NULL;
+	from_fwd_norm_face[i] = NULL;
+	from_back_norm_face[i] = NULL;
+      }
+#endif      
       initComms = false;
       checkCudaError();
     }
   }
+
+  void cudaColorSpinorField::streamInit(cudaStream_t *stream_p){
+    stream = stream_p;
+  }
+
 
   void cudaColorSpinorField::pack(FullClover &clov, FullClover &clovInv, int nFace, int parity,
 				  int dagger, cudaStream_t *stream_p, bool zeroCopyPack, double a) {
@@ -983,6 +1066,23 @@ namespace quda {
     }
   }
 
+
+  void cudaColorSpinorField::pack(FullClover &clov, FullClover &clovInv, int nFace, int parity,
+				  int dagger, int stream_idx, bool zeroCopyPack, double a) {
+    allocateGhostBuffer(nFace);   // allocate the ghost buffer if not yet allocated  
+    createComms(nFace); // must call this first
+
+    const int dim=-1; // pack all partitioned dimensions
+ 
+    if (zeroCopyPack) {
+      void *my_face_d;
+      cudaHostGetDevicePointer(&my_face_d, my_face, 0); // set the matching device pointer
+      packGhost(clov, clovInv, nFace, (QudaParity)parity, dim, QUDA_BOTH_DIRS, dagger, &stream[stream_idx], my_face_d, a);
+    } else {
+      packGhost(clov, clovInv, nFace, (QudaParity)parity, dim, QUDA_BOTH_DIRS, dagger,  &stream[stream_idx-1], 0, a);
+    }
+  }
+
   void cudaColorSpinorField::pack(int nFace, int parity, int dagger, cudaStream_t *stream_p, 
 				  bool zeroCopyPack, double a, double b) {
     allocateGhostBuffer(nFace);   // allocate the ghost buffer if not yet allocated  
@@ -998,6 +1098,23 @@ namespace quda {
       packGhost(nFace, (QudaParity)parity, dim, QUDA_BOTH_DIRS, dagger, &stream[0], my_face_d, a, b);
     } else {
       packGhost(nFace, (QudaParity)parity, dim, QUDA_BOTH_DIRS, dagger,  &stream[Nstream-1], 0, a, b);
+    }
+  }
+
+
+  void cudaColorSpinorField::pack(int nFace, int parity, int dagger, int stream_idx, 
+				  bool zeroCopyPack, double a, double b) {
+    allocateGhostBuffer(nFace);   // allocate the ghost buffer if not yet allocated  
+    createComms(nFace); // must call this first
+
+    const int dim=-1; // pack all partitioned dimensions
+ 
+    if (zeroCopyPack) {
+      void *my_face_d;
+      cudaHostGetDevicePointer(&my_face_d, my_face, 0); // set the matching device pointer
+      packGhost(nFace, (QudaParity)parity, dim, QUDA_BOTH_DIRS, dagger, &stream[stream_idx], my_face_d, a, b);
+    } else {
+      packGhost(nFace, (QudaParity)parity, dim, QUDA_BOTH_DIRS, dagger,  &stream[stream_idx], 0, a, b);
     }
   }
 
@@ -1051,6 +1168,17 @@ namespace quda {
       // Prepost receive
       comm_start(mh_recv_back[nFace-1][dim]);
     }
+#ifdef GPU_COMMS
+    if(precision != QUDA_HALF_PRECISION) return;
+
+    if (dir%2 == 0) { // sending backwards
+      // Prepost receive
+      comm_start(mh_recv_norm_fwd[nFace-1][dim]);
+    } else { //sending forwards
+      // Prepost receive
+      comm_start(mh_recv_norm_back[nFace-1][dim]);
+    }
+#endif
   }
 
   void cudaColorSpinorField::sendStart(int nFace, int dir, int dagger) {
@@ -1062,6 +1190,14 @@ namespace quda {
     } else { //sending forwards
       comm_start(mh_send_fwd[nFace-1][2*dim+dagger]);
     }
+#ifdef GPU_COMMS
+    if(precision != QUDA_HALF_PRECISION) return;
+    if (dir%2 == 0) { // sending backwards
+      comm_start(mh_send_norm_back[nFace-1][2*dim+dagger]);
+    } else { //sending forwards
+      comm_start(mh_send_norm_fwd[nFace-1][2*dim+dagger]);
+    }
+#endif
   }
 
 
@@ -1081,12 +1217,30 @@ namespace quda {
       // Begin forward send
       comm_start(mh_send_fwd[nFace-1][2*dim+dagger]);
     }
+#ifdef GPU_COMMS
+
+    if(precision != QUDA_HALF_PRECISION) return;		
+
+    if (dir%2 == 0) { // sending backwards
+      // Prepost receive
+      comm_start(mh_recv_norm_fwd[nFace-1][dim]);
+      comm_start(mh_send_norm_back[nFace-1][2*dim+dagger]);
+    } else { //sending forwards
+      // Prepost receive
+      comm_start(mh_recv_norm_back[nFace-1][dim]);
+      // Begin forward send
+      comm_start(mh_send_norm_fwd[nFace-1][2*dim+dagger]);
+    }
+#endif
   }
 
   int cudaColorSpinorField::commsQuery(int nFace, int dir, int dagger) {
     int dim = dir / 2;
     if(!commDimPartitioned(dim)) return 0;
-    
+
+#ifdef GPU_COMMS
+    if(precision != QUDA_HALF_PRECISION){
+#endif
     if(dir%2==0) {
       if (comm_query(mh_recv_fwd[nFace-1][dim]) && 
 	  comm_query(mh_send_back[nFace-1][2*dim+dagger])) return 1;
@@ -1094,7 +1248,21 @@ namespace quda {
       if (comm_query(mh_recv_back[nFace-1][dim]) && 
 	  comm_query(mh_send_fwd[nFace-1][2*dim+dagger])) return 1;
     }
-    
+#ifdef GPU_COMMS
+   }else{ // half precision
+    if(dir%2==0) {
+      if (comm_query(mh_recv_fwd[nFace-1][dim]) && 
+	  comm_query(mh_send_back[nFace-1][2*dim+dagger]) &&
+	  comm_query(mh_recv_norm_fwd[nFace-1][dim]) &&
+	  comm_query(mh_send_norm_back[nFace-1][2*dim+dagger])) return 1;
+    } else {
+      if (comm_query(mh_recv_back[nFace-1][dim]) && 
+	  comm_query(mh_send_fwd[nFace-1][2*dim+dagger]) &&
+	  comm_query(mh_recv_norm_back[nFace-1][dim]) && 
+	  comm_query(mh_send_norm_fwd[nFace-1][2*dim+dagger])) return 1;
+    }
+   } // half precision
+#endif
     return 0;
   }
 
