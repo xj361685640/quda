@@ -23,6 +23,10 @@
 #include <qmp.h>
 #endif
 
+#ifdef PTHREADS
+#include <pthread.h>
+#endif
+
 #define MAX_SHORT 32767.0f
 
 // The "Quda" prefix is added to avoid collisions with other libraries.
@@ -42,6 +46,8 @@
 #include <quda.h>
 #include <util_quda.h>
 #include <malloc_quda.h>
+
+#include <vector>
 
 // Use bindless texture on Kepler
 #if (__COMPUTE_CAPABILITY__ >= 300) && (CUDA_VERSION >= 5000)
@@ -79,7 +85,11 @@ extern "C" {
 
   extern cudaDeviceProp deviceProp;  
   extern cudaStream_t *streams;
-  
+ 
+#ifdef PTHREADS
+  extern pthread_mutex_t pthread_mutex;
+#endif
+ 
 #ifdef __cplusplus
 }
 #endif
@@ -124,7 +134,7 @@ namespace quda {
     }
 
     void Stop() {
-      if (!running) errorQuda("Cannot start an already running timer");
+      if (!running) errorQuda("Cannot stop an unstarted timer");
       gettimeofday(&stop, NULL);
 
       long ds = stop.tv_sec - start.tv_sec;
@@ -209,7 +219,11 @@ namespace quda {
   };
 
 #ifdef MULTI_GPU
+#ifdef PTHREADS
+  const int Nstream = 10;
+#else
   const int Nstream = 9;
+#endif
 #else
   const int Nstream = 1;
 #endif

@@ -30,6 +30,8 @@ using namespace quda;
 
 extern void usage(char** argv );
 
+extern QudaDslashType dslash_type;
+
 extern int test_type;
 
 extern bool tune;
@@ -76,6 +78,10 @@ void init()
 {    
 
   initQuda(device);
+
+#ifdef GPU_COMMS
+  setKernelPackT(true);
+#endif
 
   setVerbosity(QUDA_VERBOSE);
 
@@ -166,7 +172,7 @@ void init()
   if (fatlink == NULL || longlink == NULL){
     errorQuda("ERROR: malloc failed for fatlink/longlink");
   }
-  construct_fat_long_gauge_field(fatlink, longlink, 1, gaugeParam.cpu_prec, &gaugeParam);
+  construct_fat_long_gauge_field(fatlink, longlink, 1, gaugeParam.cpu_prec, &gaugeParam, dslash_type);
 
   if(link_recon == QUDA_RECONSTRUCT_9 || link_recon == QUDA_RECONSTRUCT_13){ // incorporate non-trivial phase into long links
     const double cos_pi_3 = 0.5; // Cos(pi/3)
@@ -461,7 +467,7 @@ static int dslashTest(int argc, char **argv)
   
     if (verify_results) {
       ::testing::InitGoogleTest(&argc, argv);
-      return RUN_ALL_TESTS();
+      if (RUN_ALL_TESTS() != 0) warningQuda("Tests failed");
     }
   }
   end();

@@ -90,10 +90,24 @@ void printQudaGaugeParam(QudaGaugeParam *param) {
   P(gaugeGiB, INVALID_DOUBLE);
 #endif
 
+
 #if defined INIT_PARAM
+  P(overlap, 0);
   P(preserve_gauge, 0);
 #else
   P(preserve_gauge, INVALID_INT);
+#endif
+
+#if defined INIT_PARAM
+  P(use_resident_gauge, 0);
+  P(use_resident_mom, 0);
+  P(make_resident_gauge, 0);
+  P(make_resident_mom, 0);
+#else
+  P(use_resident_gauge, INVALID_INT);
+  P(use_resident_mom, INVALID_INT);
+  P(make_resident_gauge, INVALID_INT);
+  P(make_resident_mom, INVALID_INT);
 #endif
 
 #ifdef INIT_PARAM
@@ -101,7 +115,41 @@ void printQudaGaugeParam(QudaGaugeParam *param) {
 #endif
 }
 
+// define the appropriate function for EigParam
 
+#if defined INIT_PARAM
+QudaEigParam newQudaEigParam(void) {
+  QudaEigParam ret;
+#elif defined CHECK_PARAM
+static void checkEigParam(QudaEigParam *param) {
+#else
+void printQudaEigParam(QudaEigParam *param) {
+  printfQuda("QUDA Eig Parameters:\n");
+#endif
+
+#if defined INIT_PARAM
+  P(RitzMat_lanczos, QUDA_INVALID_SOLUTION);
+  P(RitzMat_Convcheck, QUDA_INVALID_SOLUTION);
+  P(eig_type, QUDA_INVALID_TYPE);
+  P(NPoly, 0);
+  P(Stp_residual, 0.0);
+  P(nk, 0);
+  P(np, 0);
+  P(f_size, 0);
+  P(eigen_shift, 0.0);
+#else
+  P(NPoly, INVALID_INT);
+  P(Stp_residual, INVALID_DOUBLE);
+  P(nk, INVALID_INT);
+  P(np, INVALID_INT);
+  P(f_size, INVALID_INT);
+  P(eigen_shift, INVALID_DOUBLE);
+#endif
+
+#ifdef INIT_PARAM
+  return ret;
+#endif
+}
 // define the appropriate function for InvertParam
 
 #if defined INIT_PARAM
@@ -127,12 +175,18 @@ void printQudaInvertParam(QudaInvertParam *param) {
   P(twist_flavor, QUDA_TWIST_INVALID);
 #else
   // asqtad and domain wall use mass parameterization
-  if (param->dslash_type == QUDA_ASQTAD_DSLASH || param->dslash_type == QUDA_DOMAIN_WALL_DSLASH) {
+  if (param->dslash_type == QUDA_STAGGERED_DSLASH || 
+      param->dslash_type == QUDA_ASQTAD_DSLASH || 
+      param->dslash_type == QUDA_DOMAIN_WALL_DSLASH ||
+      param->dslash_type == QUDA_DOMAIN_WALL_4D_DSLASH ||
+      param->dslash_type == QUDA_MOBIUS_DWF_DSLASH ) {
     P(mass, INVALID_DOUBLE);
   } else { // Wilson and clover use kappa parameterization
     P(kappa, INVALID_DOUBLE);
   }
-  if (param->dslash_type == QUDA_DOMAIN_WALL_DSLASH) {
+  if (param->dslash_type == QUDA_DOMAIN_WALL_DSLASH ||
+      param->dslash_type == QUDA_DOMAIN_WALL_4D_DSLASH ||
+      param->dslash_type == QUDA_MOBIUS_DWF_DSLASH ) {
     P(m5, INVALID_DOUBLE);
     P(Ls, INVALID_INT);
   }
@@ -156,10 +210,16 @@ void printQudaInvertParam(QudaInvertParam *param) {
 
   P(maxiter, INVALID_INT);
   P(reliable_delta, INVALID_DOUBLE);
+#ifdef INIT_PARAM /**< Default is to use a sloppy accumulator */
+  P(use_sloppy_partial_accumulator, 1);
+#else
+  P(use_sloppy_partial_accumulator, INVALID_INT);
+#endif
 
 #ifndef CHECK_PARAM
   P(pipeline, 0); /** Whether to use a pipelined solver */
   P(num_offset, 0); /**< Number of offsets in the multi-shift solver */
+  P(overlap, 0); /**< width of domain overlaps */
 #endif
 
   if (param->num_offset > 0) {
@@ -259,6 +319,7 @@ void printQudaInvertParam(QudaInvertParam *param) {
     P(clover_cuda_prec_sloppy, QUDA_INVALID_PRECISION);
 #if defined INIT_PARAM
     P(clover_cuda_prec_precondition, QUDA_INVALID_PRECISION);
+    P(compute_clover_trlog, 0);
 #else
   if (param->clover_cuda_prec_precondition == QUDA_INVALID_PRECISION)
     param->clover_cuda_prec_precondition = param->clover_cuda_prec_sloppy;

@@ -7,10 +7,57 @@
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <cstring>
 
 namespace quda {
 
-  class TuneKey {
+class TuneKey {
+
+  public:
+    char volume[32];
+    char name[256];
+    char aux[256];
+
+    TuneKey() { }
+    TuneKey(const char v[], const char n[], const char a[]="type=default") {
+      strcpy(volume, v);
+      strcpy(name, n);
+      strcpy(aux, a);
+    } 
+    TuneKey(const TuneKey &key) {
+      strcpy(volume,key.volume);
+      strcpy(name,key.name);
+      strcpy(aux,key.aux);
+    }
+
+    TuneKey& operator=(const TuneKey &key) {
+      if (&key != this) {
+	strcpy(volume,key.volume);
+	strcpy(name,key.name);
+	strcpy(aux,key.aux);
+      }
+      return *this;
+    }
+
+    bool operator<(const TuneKey &other) const {
+      int vc = std::strcmp(volume, other.volume);
+      if (vc < 0) {
+	return true;
+      } else if (vc == 0) {
+	int nc = std::strcmp(name, other.name);
+	if (nc < 0) {
+	  return true;
+	} else if (nc == 0) {
+	  return (std::strcmp(aux, other.aux) < 0 ? true : false);
+	}
+      }
+      return false;
+    }
+
+  };
+
+
+/*class TuneKey {
 
   public:
     std::string volume;
@@ -38,7 +85,7 @@ namespace quda {
 	((volume == other.volume) && (name == other.name) && (aux < other.aux));
     }
 
-  };
+  };*/
 
 
   class TuneParam {
@@ -80,6 +127,7 @@ namespace quda {
     // override this if a specific thread count is required (e.g., if not grid size tuning)
     virtual unsigned int minThreads() const { return 1; }
     virtual bool tuneGridDim() const { return true; }
+    virtual bool tuneSharedBytes() const { return true; }
 
     virtual bool advanceGridDim(TuneParam &param) const
     {
@@ -139,22 +187,29 @@ namespace quda {
      */
     virtual bool advanceSharedBytes(TuneParam &param) const
     {
-      const int max_shared = deviceProp.sharedMemPerBlock;
-      const int max_blocks_per_sm = 8; // FIXME: derive from deviceProp
-      int blocks_per_sm = max_shared / (param.shared_bytes ? param.shared_bytes : 1);
-      if (blocks_per_sm > max_blocks_per_sm) blocks_per_sm = max_blocks_per_sm;
-      param.shared_bytes = max_shared / blocks_per_sm + 1;
-      if (param.shared_bytes > max_shared) {
-	TuneParam next(param);
-	advanceBlockDim(next); // to get next blockDim
-	int nthreads = next.block.x * next.block.y * next.block.z;
-	param.shared_bytes = sharedBytesPerThread()*nthreads > sharedBytesPerBlock(param) ?
-	  sharedBytesPerThread()*nthreads : sharedBytesPerBlock(param);
-	return false;
+      if (tuneSharedBytes()) {
+	const int max_shared = deviceProp.sharedMemPerBlock;
+	const int max_blocks_per_sm = 8; // FIXME: derive from deviceProp
+	int blocks_per_sm = max_shared / (param.shared_bytes ? param.shared_bytes : 1);
+	if (blocks_per_sm > max_blocks_per_sm) blocks_per_sm = max_blocks_per_sm;
+	param.shared_bytes = max_shared / blocks_per_sm + 1;
+	if (param.shared_bytes > max_shared) {
+	  TuneParam next(param);
+	  advanceBlockDim(next); // to get next blockDim
+	  int nthreads = next.block.x * next.block.y * next.block.z;
+	  param.shared_bytes = sharedBytesPerThread()*nthreads > sharedBytesPerBlock(param) ?
+	    sharedBytesPerThread()*nthreads : sharedBytesPerBlock(param);
+	  return false;
+	} else {
+	  return true;
+	}
       } else {
-	return true;
+	return false;
       }
     }
+
+    char vol[32];
+    char aux[1024];
 
   public:
     Tunable() { }
@@ -255,7 +310,7 @@ namespace quda {
 
   void loadTuneCache(QudaVerbosity verbosity);
   void saveTuneCache(QudaVerbosity verbosity);
-  TuneParam tuneLaunch(Tunable &tunable, QudaTune enabled, QudaVerbosity verbosity);
+  TuneParam& tuneLaunch(Tunable &tunable, QudaTune enabled, QudaVerbosity verbosity);
 
 } // namespace quda
 

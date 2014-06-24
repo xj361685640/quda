@@ -142,6 +142,8 @@ namespace quda {
       K = new BiCGstab(matPrecon, matPrecon, matPrecon, Kparam, profile);
     else if (param.inv_type_precondition == QUDA_MR_INVERTER) // inner MR preconditioner
       K = new MR(matPrecon, Kparam, profile);
+    else if (param.inv_type_precondition == QUDA_SD_INVERTER) // inner MR preconditioner
+      K = new SD(matPrecon, Kparam, profile);
     else if (param.inv_type_precondition != QUDA_INVALID_INVERTER) // unknown preconditioner
       errorQuda("Unknown inner solver %d", param.inv_type_precondition);
 
@@ -234,6 +236,7 @@ namespace quda {
     } else {
       copyCuda(r, b);
       r2 = b2;
+      zeroCuda(x); // defensive measure in case solution isn't already zero
     }
 
     // Check to see that we're not trying to invert on a zero-field source
@@ -246,7 +249,7 @@ namespace quda {
       return;
     }
 
-    double stop = b2*param.tol*param.tol; // stopping condition of solver
+    double stop = stopping(param.tol, b2, param.residual_type); // stopping condition of solver
 
     const bool use_heavy_quark_res = 
       (param.residual_type & QUDA_HEAVY_QUARK_RESIDUAL) ? true : false;
