@@ -534,9 +534,16 @@ namespace quda {
     SolverParam &param;
     TimeProfile &profile;
 
+    //WARNING: eigcg_precision may not coinside with param.precision and param.precision_sloppy (both used for the initCG).
+    //
+    QudaPrecision eigcg_precision;//may be double or single.
+
   public:
-    DeflatedSolver(SolverParam &param, TimeProfile &profile) : 
-    param(param), profile(profile) { ; }
+    DeflatedSolver(SolverParam &param, TimeProfile &profile) : param(param), profile(profile) 
+    { 
+       eigcg_precision = param.precision;//for mixed presicion use param.precision_sloppy 
+    }
+
     virtual ~DeflatedSolver() { ; }
 
     virtual void operator()(cudaColorSpinorField *out, cudaColorSpinorField *in) = 0;
@@ -570,16 +577,16 @@ namespace quda {
   class IncEigCG : public DeflatedSolver {
 
   private:
-    const DiracMatrix &mat;
-    const DiracMatrix &matSloppy;
+    DiracMatrix &mat;
+    DiracMatrix &matSloppy;
+
     const DiracMatrix &matDefl;
 
     QudaPrecision search_space_prec;
     cudaColorSpinorField *Vm;  //search vectors  (spinor matrix of size eigen_vector_length x m)
 
-    Solver      *initCG;//initCG solver for deflated inversions
-    Solver      *initCGrestart;
-    SolverParam initCGparam; // parameters for initCG solve
+    SolverParam initCGparam; // parameters for initCG solver
+    TimeProfile &profile;    //time profile for initCG solver
 
     bool eigcg_alloc;
     bool use_eigcg;
@@ -610,7 +617,7 @@ namespace quda {
     //
     void DeleteDeflationSpace(DeflationParam *&param);
     //
-    void SaveEigCGRitzVecs(DeflationParam *param, int first_idx = 0, bool cleanResources = false);
+    void SaveEigCGRitzVecs(DeflationParam *param, bool cleanResources = false);
     //
     void StoreRitzVecs(void *host_buffer, const cudaColorSpinorField *ritzvects, bool cleanResources = false) {};//extrenal method
     //
