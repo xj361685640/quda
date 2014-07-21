@@ -1,0 +1,1 @@
+./configure --enable-multi-gpu --with-qmp=/project/wflow/FUEL/install-dsg/qmp --enable-os=linux --enable-cpu-arch=x86_64 --enable-gpu-arch=sm_20 --with-cuda=/usr/local/cuda-5.5/ --with-mpi=/usr/local/mvapich/bin/  --disable-twisted-mass-dirac --disable-domain-wall-dirac --enable-staggered-fatlink --enable-hisq-fatlink --enable-gauge-force

@@ -48,6 +48,11 @@ extern "C" {
 
   void qudaSetLayout(QudaLayout_t layout);
 
+  // ESW Update: 07-18-2014
+  // Updates the local dimension as needed.
+  void qudaUpdateLocalDim(const int* latsize);
+
+
   void qudaFinalize();
 
 

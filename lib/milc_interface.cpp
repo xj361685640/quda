@@ -87,6 +87,26 @@ void qudaSetLayout(QudaLayout_t input)
   initQuda(device);
 }
 
+// ESW Update: 07-18-2014
+// Updates the local dimension as needed.
+void qudaUpdateLocalDim(const int* latsize)
+{
+  int local_dim[4];
+  for(int dir=0; dir<4; ++dir){ local_dim[dir] = latsize[dir]; }
+#ifdef MULTI_GPU
+  for(int dir=0; dir<4; ++dir){ local_dim[dir] /= gridDim[dir]; }
+#endif
+  for(int dir=0; dir<4; ++dir){
+    if(local_dim[dir]%2 != 0){
+      printf("Error: Odd lattice dimensions are not supported\n");
+      exit(1);
+    }
+  }
+
+  for(int dir=0; dir<4; ++dir) localDim[dir] = local_dim[dir];
+
+}
+
 
 void qudaHisqParamsInit(QudaHisqParams_t params)
 {
