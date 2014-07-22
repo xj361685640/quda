@@ -23,13 +23,13 @@ namespace quda {
   }
 
   SD::~SD(){
-    if(param.inv_type_precondition != QUDA_PCG_INVERTER) profile.Start(QUDA_PROFILE_FREE);
+    if(param.inv_type_precondition != QUDA_PCG_INVERTER && param.inv_type_precondition != QUDA_GCR_INVERTER) profile.Start(QUDA_PROFILE_FREE);
     if(init){
       delete r;
       delete Ar; 
       delete y;
     }
-    if(param.inv_type_precondition != QUDA_PCG_INVERTER) profile.Stop(QUDA_PROFILE_FREE);
+    if(param.inv_type_precondition != QUDA_PCG_INVERTER && param.inv_type_precondition != QUDA_GCR_INVERTER) profile.Stop(QUDA_PROFILE_FREE);
   }
 
 
@@ -50,7 +50,6 @@ namespace quda {
     zeroCuda(*r), zeroCuda(x);
     double r2 = xmyNormCuda(b,*r);
     double alpha=0.; 
-    double beta=0;
     double2 rAr;
 
     int k=0;

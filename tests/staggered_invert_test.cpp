@@ -118,6 +118,7 @@ set_params(QudaGaugeParam* gaugeParam, QudaInvertParam* inv_param,
   // outer solver parameters
   inv_param->inv_type = inv_type;
   inv_param->tol = tol;
+  inv_param->tol_restart = 1e-3; //now theoretical background for this parameter... 
   inv_param->maxiter = 500000;
   inv_param->reliable_delta = 1e-1;
   inv_param->use_sloppy_partial_accumulator = false;
@@ -142,9 +143,9 @@ set_params(QudaGaugeParam* gaugeParam, QudaInvertParam* inv_param,
   // domain decomposition preconditioner parameters
   inv_param->inv_type_precondition = QUDA_SD_INVERTER;
   inv_param->tol_precondition = 1e-1;
-  inv_param->maxiter_precondition = 100;
+  inv_param->maxiter_precondition = 10;
   inv_param->verbosity_precondition = QUDA_SILENT;
-  inv_param->cuda_prec_precondition = prec_sloppy;
+  inv_param->cuda_prec_precondition = QUDA_HALF_PRECISION;
 
   inv_param->solution_type = QUDA_MATPCDAG_MATPC_SOLUTION;
   inv_param->solve_type = QUDA_NORMOP_PC_SOLVE;
@@ -295,6 +296,7 @@ invert_test(void)
     QUDA_SU3_LINKS : QUDA_ASQTAD_FAT_LINKS;
   gaugeParam.ga_pad = fat_pad;
   gaugeParam.reconstruct= gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+  gaugeParam.cuda_prec_precondition = QUDA_HALF_PRECISION;
   loadGaugeQuda(fatlink, &gaugeParam);
 
   if (dslash_type == QUDA_ASQTAD_DSLASH) {
@@ -307,6 +309,7 @@ invert_test(void)
 #else
   gaugeParam.type = QUDA_ASQTAD_FAT_LINKS;
   gaugeParam.reconstruct = gaugeParam.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+  gaugeParam.cuda_prec_precondition = QUDA_HALF_PRECISION;
   loadGaugeQuda(fatlink, &gaugeParam);
 
   if (dslash_type == QUDA_ASQTAD_DSLASH) {
@@ -323,10 +326,16 @@ invert_test(void)
   double src2=0;
   int ret = 0;
 
+
+
   switch(test_type){
-    case 5: 
-      inv_param.inv_type = QUDA_PCG_INVERTER;
     case 0: //even
+      if(inv_type == QUDA_GCR_INVERTER){
+      	inv_param.inv_type = QUDA_GCR_INVERTER;
+      	inv_param.gcrNkrylov = 50;
+      }else if(inv_type == QUDA_PCG_INVERTER){
+	inv_param.inv_type = QUDA_PCG_INVERTER;
+      }
       inv_param.matpc_type = QUDA_MATPC_EVEN_EVEN;
 
       invertQuda(out->V(), in->V(), &inv_param);
@@ -349,9 +358,13 @@ invert_test(void)
 
       break;
 
-    case 6:
-      inv_param.inv_type = QUDA_PCG_INVERTER;
     case 1: //odd
+      if(inv_type == QUDA_GCR_INVERTER){
+      	inv_param.inv_type = QUDA_GCR_INVERTER;
+      	inv_param.gcrNkrylov = 50;
+      }else if(inv_type == QUDA_PCG_INVERTER){
+	inv_param.inv_type = QUDA_PCG_INVERTER;
+      }
 
       inv_param.matpc_type = QUDA_MATPC_ODD_ODD;
       invertQuda(out->V(), in->V(), &inv_param);	
@@ -542,8 +555,6 @@ usage_extra(char** argv )
   printfQuda("                                                1: Odd odd spinor CG inverter\n");
   printfQuda("                                                3: Even even spinor multishift CG inverter\n");
   printfQuda("                                                4: Odd odd spinor multishift CG inverter\n");
-  printfQuda("                                                5: Even even spinor preconditioned CG inverter\n");
-  printfQuda("                                                6: Odd odd spinor preconditioned CG inverter\n");
   printfQuda("    --cpu_prec <double/single/half>          # Set CPU precision\n");
 
   return ;
@@ -589,6 +600,10 @@ int main(int argc, char** argv)
   }
   if (link_recon_sloppy == QUDA_RECONSTRUCT_INVALID){
     link_recon_sloppy = link_recon;
+  }
+
+  if(inv_type != QUDA_CG_INVERTER){
+    if(test_type != 0 && test_type != 1) errorQuda("Preconditioning is currently not supported in multi-shift solver solvers");
   }
 
 

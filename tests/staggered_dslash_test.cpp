@@ -20,6 +20,7 @@
 #include <face_quda.h>
 
 #include <assert.h>
+#include <gtest.h>
 
 using namespace quda;
 
@@ -115,7 +116,7 @@ void init()
   inv_param.gamma_basis = QUDA_DEGRAND_ROSSI_GAMMA_BASIS;
   inv_param.dagger = dagger;
   inv_param.matpc_type = QUDA_MATPC_EVEN_EVEN;
-  inv_param.dslash_type = QUDA_ASQTAD_DSLASH;
+  inv_param.dslash_type = dslash_type;
 
   inv_param.input_location = QUDA_CPU_FIELD_LOCATION;
   inv_param.output_location = QUDA_CPU_FIELD_LOCATION;
@@ -410,14 +411,12 @@ void staggeredDslashRef()
 
 }
 
-/*
 TEST(dslash, verify) {
   double deviation = pow(10, -(double)(cpuColorSpinorField::Compare(*spinorRef, *spinorOut)));
   double tol = (inv_param.cuda_prec == QUDA_DOUBLE_PRECISION ? 1e-12 :
 		(inv_param.cuda_prec == QUDA_SINGLE_PRECISION ? 1e-3 : 1e-1));
   ASSERT_LE(deviation, tol) << "CPU and CUDA implementations do not agree";
 }
-*/
 
 static int dslashTest(int argc, char **argv) 
 {
@@ -465,10 +464,11 @@ static int dslashTest(int argc, char **argv)
     } else {
       printfQuda("Result: CPU = %f, CPU-QUDA = %f\n",  norm2_cpu, norm2_cpu_cuda);
     }
-
-    accuracy_level = cpuColorSpinorField::Compare(*spinorRef, *spinorOut);
-
- 
+  
+    if (verify_results) {
+      ::testing::InitGoogleTest(&argc, argv);
+      if (RUN_ALL_TESTS() != 0) warningQuda("Tests failed");
+    }
   }
   end();
 

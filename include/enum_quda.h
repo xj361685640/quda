@@ -75,6 +75,8 @@ extern "C" {
     QUDA_WILSON_DSLASH,
     QUDA_CLOVER_WILSON_DSLASH,
     QUDA_DOMAIN_WALL_DSLASH,
+    QUDA_DOMAIN_WALL_4D_DSLASH,
+    QUDA_MOBIUS_DWF_DSLASH,
     QUDA_STAGGERED_DSLASH,
     QUDA_ASQTAD_DSLASH,
     QUDA_TWISTED_MASS_DSLASH,
@@ -87,16 +89,27 @@ extern "C" {
     QUDA_BICGSTAB_INVERTER,
     QUDA_GCR_INVERTER,
     QUDA_SD_INVERTER,
+    QUDA_XSD_INVERTER,
     QUDA_MR_INVERTER,
     QUDA_PCG_INVERTER,
+    QUDA_EIGCG_INVERTER,
+    QUDA_INC_EIGCG_INVERTER,
     QUDA_INVALID_INVERTER = QUDA_INVALID_ENUM
   } QudaInverterType;
+
+  typedef enum QudaEigType_s {
+    QUDA_LANCZOS, //Normal Lanczos eigen solver
+    QUDA_IMP_RST_LANCZOS, //implicit restarted lanczos solver
+    QUDA_INVALID_TYPE
+  } QudaEigType;
 
   typedef enum QudaSolutionType_s {
     QUDA_MAT_SOLUTION,
     QUDA_MATDAG_MAT_SOLUTION,
     QUDA_MATPC_SOLUTION,
+    QUDA_MATPC_DAG_SOLUTION,
     QUDA_MATPCDAG_MATPC_SOLUTION,
+    QUDA_MATPCDAG_MATPC_SHIFT_SOLUTION,
     QUDA_INVALID_SOLUTION = QUDA_INVALID_ENUM
   } QudaSolutionType;
 
@@ -225,6 +238,8 @@ extern "C" {
     QUDA_CLOVERPC_DIRAC,
     QUDA_DOMAIN_WALL_DIRAC,
     QUDA_DOMAIN_WALLPC_DIRAC,
+    QUDA_DOMAIN_WALL_4DPC_DIRAC,// 4D preconditioned domain wall dirac operator
+    QUDA_MOBIUS_DOMAIN_WALLPC_DIRAC,
     QUDA_STAGGERED_DIRAC,
     QUDA_STAGGEREDPC_DIRAC,
     QUDA_ASQTAD_DIRAC,
@@ -290,6 +305,13 @@ extern "C" {
     QUDA_INVALID_SOURCE = QUDA_INVALID_ENUM
   } QudaSourceType;
   
+  // used to select preconditioning method in domain-wall fermion
+  typedef enum QudaDWFPCType_s {
+    QUDA_5D_PC,
+    QUDA_4D_PC,
+    QUDA_PC_INVALID
+  } QudaDWFPCType; 
+
   typedef enum QudaTwistFlavorType_s {
     QUDA_TWIST_MINUS = -1,
     QUDA_TWIST_PLUS = +1,

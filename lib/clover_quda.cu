@@ -14,6 +14,8 @@ namespace CloverOrder {
 
 namespace quda {
 
+#ifdef GPU_CLOVER_DIRAC
+
   template<typename Float, typename Clover, typename Gauge>
     struct CloverArg {
       int threads; // number of active threads required
@@ -300,6 +302,8 @@ namespace quda {
     class FmunuCompute : Tunable {
       CloverArg<Float,Clover,Gauge> arg;
       const QudaFieldLocation location;
+      mutable char vol_string[32]; // used as a label in the autotuner
+      mutable char aux_string[128]; // used as a label in the autotuner
 
       private: 
       unsigned int sharedBytesPerThread() const { return 0; }
@@ -324,14 +328,9 @@ namespace quda {
       }
 
       TuneKey tuneKey() const {
-        std::stringstream vol, aux;
-        vol << arg.X[0] << "x";
-        vol << arg.X[1] << "x";
-        vol << arg.X[2] << "x";
-        vol << arg.X[3];
-        aux << "threads=" << arg.threads << ",prec="  << sizeof(Float);
-        aux << ",stride=" << arg.clover.stride;
-        return TuneKey(vol.str(), typeid(*this).name(), aux.str());
+	sprintf(vol_string,"%dx%dx%dx%d",arg.X[0],arg.X[1],arg.X[2],arg.X[3]);
+	sprintf(aux_string,"threads=%d,stride=%d,prec=%lu",arg.threads,arg.clover.stride,sizeof(Float));
+	return TuneKey(vol_string, typeid(*this).name(), aux_string);
       }
 
 
@@ -476,6 +475,8 @@ namespace quda {
     class CloverCompute : Tunable {
       CloverArg<Float, Clover, Gauge> arg;
       const QudaFieldLocation location;
+      mutable char vol_string[32]; // used as a label in the autotuner
+      mutable char aux_string[128]; // used as a label in the autotuner
 
       private: 
       unsigned int sharedBytesPerThread() const { return 0; }
@@ -501,14 +502,9 @@ namespace quda {
       }
 
       TuneKey tuneKey() const {
-        std::stringstream vol, aux;
-        vol << arg.X[0] << "x";
-        vol << arg.X[1] << "x";
-        vol << arg.X[2] << "x";
-        vol << arg.X[3];
-        aux << "threads=" << arg.threads << ",prec="  << sizeof(Float);
-        aux << ",stride=" << arg.clover.stride;
-        return TuneKey(vol.str(), typeid(*this).name(), aux.str());
+	sprintf(vol_string,"%dx%dx%dx%d",arg.X[0],arg.X[1],arg.X[2],arg.X[3]);
+	sprintf(aux_string,"threads=%d,stride=%d,prec=%lu",arg.threads,arg.clover.stride,sizeof(Float));
+	return TuneKey(vol_string, typeid(*this).name(), aux_string);
       }
 
       std::string paramString(const TuneParam &param) const { // Don't print the grid dim.
@@ -594,9 +590,11 @@ namespace quda {
       if(Fmunu) delete Fmunu;
     }
 
+#endif
 
   void computeClover(CloverField &clover, const GaugeField& gauge, double cloverCoeff, QudaFieldLocation location){
 
+#ifdef GPU_CLOVER_DIRAC
     if(clover.Precision() == QUDA_HALF_PRECISION){
       errorQuda("Half precision not supported\n");
     }
@@ -609,6 +607,10 @@ namespace quda {
       errorQuda("Precision %d not supported", clover.Precision());
     }
     return;
+#else
+    errorQuda("Clover has not been built");
+#endif
+
   }
 
 } // namespace quda

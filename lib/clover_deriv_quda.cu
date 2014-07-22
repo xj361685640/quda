@@ -9,6 +9,8 @@
 
 namespace quda {
 
+#ifdef GPU_CLOVER_DIRAC
+
   template<class Cmplx>
     struct CloverDerivArg
     {
@@ -62,8 +64,6 @@ namespace quda {
     for (int i=0; i<4; i++) y[i] = (x[i] + dx[i] + X[i]) % X[i];
     return (((y[3]*X[2] + y[2])*X[1] + y[1])*X[0] + y[0])/2;
   }
-
-
 
 
   template<typename Cmplx, bool isConjugate>
@@ -315,7 +315,11 @@ namespace quda {
 
       public:
         CloverDerivative(const CloverDerivArg<Complex> &arg)
-          : arg(arg) {}
+          : arg(arg) {
+	  sprintf(vol,"%dx%dx%dx%d",arg.X[0],arg.X[1],arg.X[2],arg.X[3]);
+	  sprintf(aux,"threads=%d,prec=%lu,stride=%d,geometery=%d",
+		  arg.volumeCB,sizeof(Complex)/2,arg.forceOffset);
+	}
         virtual ~CloverDerivative() {}
 
         void apply(const cudaStream_t &stream){
@@ -336,16 +340,7 @@ namespace quda {
 
         long long bytes() const { return 0; }
 
-        TuneKey tuneKey() const {
-          std::stringstream vol, aux;
-          vol << arg.X[0] << "x";
-          vol << arg.X[1] << "x";
-          vol << arg.X[2] << "x";
-          vol << arg.X[3] << "x";
-          aux << "threads=" << arg.volumeCB << ",prec=" << sizeof(Complex)/2;
-          aux << "stride=" << arg.forceOffset;
-          return TuneKey(vol.str(), typeid(*this).name(), aux.str());
-        }
+        TuneKey tuneKey() const { return TuneKey(vol, typeid(*this).name(), aux); }
     };
 
 
@@ -369,12 +364,14 @@ namespace quda {
       }
     }    
 
+#endif
 
   void cloverDerivative(cudaGaugeField &out,   
       cudaGaugeField& gauge,
       cudaGaugeField& oprod,
       int mu, int nu, double coeff, QudaParity parity, int conjugate)
   {
+#ifdef GPU_CLOVER_DIRAC
     assert(oprod.Geometry() == QUDA_SCALAR_GEOMETRY);
     assert(out.Geometry() == QUDA_SCALAR_GEOMETRY);
 
@@ -388,6 +385,9 @@ namespace quda {
       errorQuda("Precision %d not supported", out.Precision());
     }
     return;
+#else
+    errorQuda("Clover has not been built");
+#endif
   }              
 
 

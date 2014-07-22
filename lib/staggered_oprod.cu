@@ -9,6 +9,9 @@
 
 namespace quda {
 
+
+#ifdef GPU_STAGGERED_OPROD
+
   namespace { // anonymous
 #include <texture.h>
   }
@@ -406,9 +409,12 @@ namespace quda {
       public:
         StaggeredOprodField(const StaggeredOprodArg<Complex,Output,Input> &arg,
             QudaFieldLocation location)
-          : arg(arg), location(location) {} 
+          : arg(arg), location(location) {
+	  sprintf(vol,"%dx%dx%dx%d",arg.X[0],arg.X[1],arg.X[2],arg.X[3]);
+	  sprintf(aux,"threads=%d,prec=%lu,stride=%d",arg.length,sizeof(Complex)/2,arg.inA.Stride());
+	} 
 
-        virtual ~StaggeredOprodField() {}
+       virtual ~StaggeredOprodField() {}
 
         void set(const StaggeredOprodArg<Complex,Output,Input> &arg, QudaFieldLocation location){
           // This is a hack. Need to change this!
@@ -456,21 +462,11 @@ namespace quda {
         }
 
         long long bytes() const { 
-          return 0; // fix this
+	  return 0; // fix this
         }
 
-        TuneKey tuneKey() const {
-          std::stringstream vol, aux;
-          vol << arg.X[0] << "x";
-          vol << arg.X[1] << "x";
-          vol << arg.X[2] << "x";
-          vol << arg.X[3] << "x";
-
-          aux << "threads=" << arg.length << ",prec=" << sizeof(Complex)/2;
-          aux << "stride=" << arg.inA.Stride();
-          return TuneKey(vol.str(), typeid(*this).name(), aux.str());
-        }
-    }; // StaggeredOprodField
+        TuneKey tuneKey() const { return TuneKey(vol, typeid(*this).name(), aux);}
+  }; // StaggeredOprodField
 
   template<typename Complex, typename Output, typename Input>
     void computeStaggeredOprodCuda(Output outA, Output outB, cudaGaugeField& outFieldA, cudaGaugeField& outFieldB, Input& inA, Input& inB, cudaColorSpinorField& src, 
@@ -632,6 +628,7 @@ namespace quda {
 #endif
     } // computeStaggeredOprodCuda
 
+#endif // GPU_STAGGERED_OPROD
 
   // At the moment, I pass an instance of FaceBuffer in. 
   // Soon, faceBuffer will be subsumed into cudaColorSpinorField.
@@ -639,6 +636,8 @@ namespace quda {
       FaceBuffer& faceBuffer,
       const unsigned int parity, const double coeff[2])
   {
+
+#ifdef GPU_STAGGERED_OPROD
 
     if(outA.Order() != QUDA_FLOAT2_GAUGE_ORDER)
       errorQuda("Unsupported output ordering: %d\n", outA.Order());    
@@ -676,6 +675,9 @@ namespace quda {
     }else{
       errorQuda("Unsupported precision: %d\n", in.Precision());
     }
+#else // GPU_STAGGERED_OPROD not defined
+   errorQuda("Staggered Outer Product has not been built!"); 
+#endif
     return;
   } // computeStaggeredOprod
 

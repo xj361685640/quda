@@ -7,6 +7,8 @@
 
 namespace quda {
 
+#ifdef GPU_CLOVER_DIRAC
+
   template <typename Clover>
   struct CloverInvertArg {
     const Clover clover;
@@ -218,6 +220,8 @@ namespace quda {
   class CloverInvert : Tunable {
     CloverInvertArg<Clover> arg;
     const QudaFieldLocation location;
+    mutable char vol_string[32]; // used as a label in the autotuner
+    mutable char aux_string[128]; // used as a label in the autotuner
 
   private:
     unsigned int sharedBytesPerThread() const { return 0; }
@@ -248,10 +252,9 @@ namespace quda {
     }
 
     TuneKey tuneKey() const {
-      std::stringstream vol, aux;
-      vol << arg.clover.volumeCB; 
-      aux << "stride=" << arg.clover.stride;
-      return TuneKey(vol.str(), typeid(*this).name(), aux.str());
+      sprintf(vol_string,"%d",arg.clover.volumeCB);
+      sprintf(aux_string,"stride=%d,prec=%lu",arg.clover.stride,sizeof(Float));
+      return TuneKey(vol_string, typeid(*this).name(), aux_string);
     }
 
     std::string paramString(const TuneParam &param) const { // Don't bother printing the grid dim.
@@ -290,8 +293,12 @@ namespace quda {
 
   }
 
+#endif
+
   // this is the function that is actually called, from here on down we instantiate all required templates
   void cloverInvert(CloverField &clover, bool computeTraceLog, QudaFieldLocation location) {
+
+#ifdef GPU_CLOVER_DIRAC
     if (clover.Precision() == QUDA_HALF_PRECISION && clover.Order() > 4) 
       errorQuda("Half precision not supported for order %d", clover.Order());
 
@@ -302,6 +309,9 @@ namespace quda {
     } else {
       errorQuda("Precision %d not supported", clover.Precision());
     }
+#else
+    errorQuda("Clover has not been built");
+#endif
   }
 
 } // namespace quda

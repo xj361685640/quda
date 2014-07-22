@@ -13,6 +13,8 @@ namespace CloverOrder {
 
 namespace quda {
 
+#ifdef GPU_CLOVER_DIRAC
+
   template<typename Clover1, typename Clover2, typename Gauge>
     struct CloverTraceArg {
       Clover1 clover1;
@@ -208,7 +210,10 @@ namespace quda {
 
       public: 
       CloverSigmaTrace(CloverTraceArg<Clover1,Clover2,Gauge> &arg, QudaFieldLocation location)
-        : arg(arg), location(location) {;}
+        : arg(arg), location(location) {
+	sprintf(vol, "%d", arg.clover1.volumeCB);
+	sprintf(aux, "stride=%d", arg.clover1.stride);
+      }
       virtual ~CloverSigmaTrace() {;}
 
       void apply(const cudaStream_t &stream){
@@ -221,12 +226,7 @@ namespace quda {
         }
       }
 
-      TuneKey tuneKey() const {
-        std::stringstream vol, aux;
-        vol << arg.clover1.volumeCB;
-        aux << "stride=" << arg.clover1.stride;
-        return TuneKey(vol.str(), typeid(*this).name(), aux.str());
-      }
+      TuneKey tuneKey() const { return TuneKey(vol, typeid(*this).name(), aux); }
 
       std::string paramString(const TuneParam &param) const { // Don't print the grid dim.
         std::stringstream ps;
@@ -302,11 +302,12 @@ namespace quda {
       } // clover order
     }
 
-
+#endif
 
   void computeCloverSigmaTrace(GaugeField& gauge, const CloverField& clover, int dir1, int dir2, 
       QudaFieldLocation location){
 
+#ifdef GPU_CLOVER_DIRAC
     if(clover.Precision() == QUDA_HALF_PRECISION){
       errorQuda("Half precision not supported\n");
     }  
@@ -318,7 +319,9 @@ namespace quda {
     }else{
       errorQuda("Precision %d not supported", clover.Precision());
     }
-
+#else
+    errorQuda("Clover has not been built");
+#endif
 
   }     
 

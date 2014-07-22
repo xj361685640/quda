@@ -50,6 +50,10 @@ void initComms(int argc, char **argv, const int *commDims)
 #if defined(QMP_COMMS)
   QMP_thread_level_t tl;
   QMP_init_msg_passing(&argc, &argv, QMP_THREAD_SINGLE, &tl);
+
+  // FIXME? - tests crash without this
+  QMP_declare_logical_topology(commDims, 4);
+
 #elif defined(MPI_COMMS)
   MPI_Init(&argc, &argv);
 #endif
@@ -80,7 +84,6 @@ void initRand()
 
   srand(17*rank + 137);
 }
-
 
 void setDims(int *X) {
   V = 1;
@@ -1556,6 +1559,7 @@ int niter = 10;
 int test_type = 0;
 QudaInverterType inv_type;
 int multishift = 0;
+bool verify_results = true;
 
 static int dim_partitioned[4] = {0,0,0,0};
 
@@ -1563,7 +1567,6 @@ int dimPartitioned(int dim)
 {
   return ((gridsize_from_cmdline[dim] > 1) || dim_partitioned[dim]);
 }
-
 
 void __attribute__((weak)) usage_extra(char** argv){};
 
@@ -1592,13 +1595,15 @@ void usage(char** argv )
   printf("    --partition <mask>                        # Set the communication topology (X=1, Y=2, Z=4, T=8, and combinations of these)\n");
   printf("    --kernel_pack_t                           # Set T dimension kernel packing to be true (default false)\n");
   printf("    --dslash_type <type>                      # Set the dslash type, the following values are valid\n"
-	 "                                                  wilson/clover/twisted_mass/twisted_clover/staggered/asqtad/domain_wall\n");
+	 "                                                  wilson/clover/twisted_mass/twisted_clover/staggered\n"
+         "                                                  /asqtad/domain_wall/domain_wall_4dpc/mobius_Dwf\n");
   printf("    --load-gauge file                         # Load gauge field \"file\" for the test (requires QIO)\n");
   printf("    --niter <n>                               # The number of iterations to perform (default 10)\n");
   printf("    --inv_type <cg/bicgstab/gcr>              # The type of solver to use (default cg)\n");
   printf("    --multishift <true/false>                 # Whether to do a multi-shift solver test or not (default false)\n");     
   printf("    --tune <true/false>                       # Whether to autotune or not (default true)\n");     
   printf("    --test                                    # Test method (different for each test)\n");
+  printf("    --verify <true/false>                     # Verify the GPU results using CPU results (default true)\n");
   printf("    --help                                    # Print out this message\n"); 
   usage_extra(argv); 
 #ifdef MULTI_GPU
@@ -1627,6 +1632,25 @@ int process_command_line_option(int argc, char** argv, int* idx)
     usage(argv);
   }
 
+  if( strcmp(argv[i], "--verify") == 0){
+    if (i+1 >= argc){
+      usage(argv);
+    }	    
+
+    if (strcmp(argv[i+1], "true") == 0){
+      verify_results = true;
+    }else if (strcmp(argv[i+1], "false") == 0){
+      verify_results = false;
+    }else{
+      fprintf(stderr, "ERROR: invalid verify type\n");	
+      exit(1);
+    }
+
+    i++;
+    ret = 0;
+    goto out;
+  }
+  
   if( strcmp(argv[i], "--device") == 0){
     if (i+1 >= argc){
       usage(argv);

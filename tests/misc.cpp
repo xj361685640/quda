@@ -798,6 +798,10 @@ get_dslash_type(char* s)
     ret =  QUDA_ASQTAD_DSLASH;
   }else if (strcmp(s, "domain_wall") == 0){
     ret =  QUDA_DOMAIN_WALL_DSLASH;
+  }else if (strcmp(s, "domain_wall_4dpc") == 0){
+    ret =  QUDA_DOMAIN_WALL_4D_DSLASH;
+  }else if (strcmp(s, "mobius_Dwf") == 0){
+    ret =  QUDA_MOBIUS_DWF_DSLASH;
   }else{
     fprintf(stderr, "Error: invalid dslash type\n");	
     exit(1);
@@ -830,6 +834,12 @@ get_dslash_type_str(QudaDslashType type)
   case QUDA_DOMAIN_WALL_DSLASH:
     ret = "domain_wall";
       break;
+  case QUDA_DOMAIN_WALL_4D_DSLASH:
+    ret = "domain_wall_4dpc";
+      break;
+  case QUDA_MOBIUS_DWF_DSLASH:
+    ret = "mobius_Dwf";
+      break;
   default:
     ret = "unknown";	
     break;
@@ -851,6 +861,8 @@ get_solver_type(char* s)
     ret = QUDA_BICGSTAB_INVERTER;
   }else if (strcmp(s, "gcr") == 0){
     ret = QUDA_GCR_INVERTER;
+  }else if (strcmp(s, "pcg") == 0){
+    ret = QUDA_PCG_INVERTER;
   }else{
     fprintf(stderr, "Error: invalid solver type\n");	
     exit(1);
