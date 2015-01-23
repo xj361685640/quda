@@ -263,7 +263,10 @@ namespace quda {
 		      reliable_shift, sqrt(r2[reliable_shift]), r0Norm[reliable_shift], resIncreaseTotal[reliable_shift]);
 
 
-	  if (resIncrease > maxResIncrease or resIncreaseTotal[reliable_shift] > maxResIncreaseTotal) break; // check if we reached the limit of our tolerancebreak;
+	  if (resIncrease > maxResIncrease or resIncreaseTotal[reliable_shift] > maxResIncreaseTotal){ //break; // check if we reached the limit of our tolerancebreak;
+    if (num_offset_now > 0) num_offset_now--;
+    else break;
+  }
 	} else {
 	  resIncrease = 0;
 	}
