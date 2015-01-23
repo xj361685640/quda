@@ -285,8 +285,7 @@ namespace quda {
 	  axpbyCuda(zeta[j], *r_sloppy, beta[j], *p[j]);
 	}    
 
-	// update reliable update parameters for the system that triggered the update
-	int m = reliable_shift;
+	// update reliable update parameters for all shifts
         rNorm[0] = sqrt(r2[0]);
 	for (int j=0; j<num_offset_now; j++){
           if (j>0) rNorm[j] = sqrt(r2[0]) * zeta[j];
