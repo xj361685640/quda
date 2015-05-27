@@ -41,18 +41,18 @@ extern int zdim;
 extern int tdim;
 extern int gridsize_from_cmdline[];
 extern QudaReconstructType link_recon;
-extern QudaPrecision prec;
+
 extern int device;
 extern bool kernel_pack_t;
 extern QudaDagType dagger;
 
 /* variables used for the test */
-class DslashTest : public ::testing::Test {
+class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
  protected:
 
   QudaGaugeParam gaugeParam;
   QudaInvertParam inv_param;
-
+  QudaPrecision prec;
   cpuGaugeField *cpuFat;// = NULL;
   cpuGaugeField *cpuLong;// = NULL;
   cpuColorSpinorField *spinor, *spinorOut, *spinorRef;
@@ -74,6 +74,25 @@ class DslashTest : public ::testing::Test {
   DslashTest():cpuFat(NULL),cpuLong(NULL),loops(100),transfer(0)
   {};
 
+  void display_test_info()
+  {
+    printfQuda("running the following test:\n");
+
+    printfQuda("prec recon   test_type     dagger   S_dim         T_dimension\n");
+    printfQuda("%s   %s       %d           %d       %d/%d/%d        %d \n",
+               get_prec_str(prec), get_recon_str(link_recon),
+               test_type, dagger, xdim, ydim, zdim, tdim);
+    printfQuda("Grid partition info:     X  Y  Z  T\n");
+    printfQuda("                         %d  %d  %d  %d\n",
+               dimPartitioned(0),
+               dimPartitioned(1),
+               dimPartitioned(2),
+               dimPartitioned(3));
+
+    return ;
+
+  }
+
   virtual void SetUp()
   {
 
@@ -83,6 +102,7 @@ class DslashTest : public ::testing::Test {
 
     setVerbosity(QUDA_VERBOSE);
 
+    prec = GetParam();
     gaugeParam = newQudaGaugeParam();
     inv_param = newQudaInvertParam();
 
@@ -287,6 +307,7 @@ class DslashTest : public ::testing::Test {
       errorQuda("Error not suppported");
     }
 
+    display_test_info();
     return;
   }
 
@@ -416,7 +437,7 @@ class DslashTest : public ::testing::Test {
 
 };
 
-TEST_F(DslashTest, verify) {
+TEST_P(DslashTest, verify) {
 
   if (tune) { // warm-up run
     printfQuda("Tuning...\n");
@@ -463,25 +484,11 @@ TEST_F(DslashTest, verify) {
 
 }
 
+INSTANTIATE_TEST_CASE_P(InstantiationName,
+                        DslashTest,
+                        ::testing::Values(4,8));
 
-void display_test_info()
-{
-  printfQuda("running the following test:\n");
 
-  printfQuda("prec recon   test_type     dagger   S_dim         T_dimension\n");
-  printfQuda("%s   %s       %d           %d       %d/%d/%d        %d \n", 
-             get_prec_str(prec), get_recon_str(link_recon),
-             test_type, dagger, xdim, ydim, zdim, tdim);
-  printfQuda("Grid partition info:     X  Y  Z  T\n"); 
-  printfQuda("                         %d  %d  %d  %d\n", 
-             dimPartitioned(0),
-             dimPartitioned(1),
-             dimPartitioned(2),
-             dimPartitioned(3));
-
-  return ;
-
-}
 
 
 void usage_extra(char** argv )
@@ -510,7 +517,7 @@ int main(int argc, char **argv)
 
   initComms(argc, argv, gridsize_from_cmdline);
 
-  display_test_info();
+
 
   int ret = RUN_ALL_TESTS();
 
