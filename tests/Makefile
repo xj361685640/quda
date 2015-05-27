@@ -27,6 +27,9 @@ deflation_test: deflation_test.o test_util.o wilson_dslash_reference.o domain_wa
 
 staggered_dslash_test: staggered_dslash_test.o gtest-all.o test_util.o staggered_dslash_reference.o misc.o $(QUDA)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LDFLAGS) 
+	
+staggered_dslash_gtest: staggered_dslash_gtest.o gtest-all.o test_util.o staggered_dslash_reference.o misc.o $(QUDA)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LDFLAGS) 
 
 staggered_invert_test: staggered_invert_test.o test_util.o staggered_dslash_reference.o misc.o blas_reference.o $(QUDA)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LDFLAGS)
