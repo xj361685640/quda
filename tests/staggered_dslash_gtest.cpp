@@ -67,7 +67,7 @@ class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
 
   const int loops;// = 100;
   QudaParity parity;
-  int transfer;// = 0; // include transfer time in the benchmark?
+  const int transfer;// = 0; // include transfer time in the benchmark?
   int X[4];
   Dirac* dirac;
 
@@ -263,7 +263,7 @@ class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
 
     printfQuda("Sending fields to GPU...");
 
-    if (!transfer) {
+//    if (!transfer) {
 
       csParam.fieldOrder = QUDA_FLOAT2_FIELD_ORDER;
       csParam.pad = inv_param.sp_pad;
@@ -303,9 +303,9 @@ class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
 
       dirac = Dirac::create(diracParam);
 
-    } else {
-      errorQuda("Error not suppported");
-    }
+//    } else {
+//      errorQuda("Error not suppported");
+//    }
 
     display_test_info();
     return;
@@ -318,12 +318,12 @@ class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
       free(longlink[dir]);
     }
 
-    if (!transfer){
+//    if (!transfer){
       delete dirac;
       delete cudaSpinor;
       delete cudaSpinorOut;
       delete tmp;
-    }
+//    }
 
     delete spinor;
     delete spinorOut;
@@ -395,8 +395,6 @@ class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
 #endif
 
     // compare to dslash reference implementation
-    printfQuda("Calculating reference implementation...");
-    fflush(stdout);
     switch (test_type) {
       case 0:
 #ifdef MULTI_GPU
@@ -484,9 +482,9 @@ TEST_P(DslashTest, verify) {
 
 }
 
-INSTANTIATE_TEST_CASE_P(InstantiationName,
+INSTANTIATE_TEST_CASE_P(StaggeredPrecision,
                         DslashTest,
-                        ::testing::Values(4,8));
+                        ::testing::Values(2,4,8));
 
 
 
