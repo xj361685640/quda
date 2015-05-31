@@ -16,7 +16,7 @@ ifeq ($(strip $(BUILD_DOMAIN_WALL_DIRAC)), yes)
 endif
 
 ifeq ($(strip $(BUILD_STAGGERED_DIRAC)), yes)
-  STAGGERED_DIRAC_TEST=staggered_dslash_test staggered_invert_test
+  STAGGERED_DIRAC_TEST=staggered_dslash_test staggered_dslash_gtest staggered_invert_test
 endif
 
 ifeq ($(strip $(BUILD_FATLINK)), yes)
