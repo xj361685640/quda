@@ -26,14 +26,13 @@ using namespace quda;
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define staggeredSpinorSiteSize 6
-
+#define  GTEST_HAS_TR1_TUPLE 1
 
 /* extern variables set using the command line options */
 
 extern void usage(char** argv );
 extern QudaDslashType dslash_type;
 // What test are we doing (0 = dslash, 1 = MatPC, 2 = Mat)
-extern int test_type;
 extern bool tune;
 extern int xdim;
 extern int ydim;
@@ -44,15 +43,17 @@ extern QudaReconstructType link_recon;
 
 extern int device;
 extern bool kernel_pack_t;
-extern QudaDagType dagger;
+
 
 /* variables used for the test */
-class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
+class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecision, QudaDagType, int> > {
  protected:
 
   QudaGaugeParam gaugeParam;
   QudaInvertParam inv_param;
   QudaPrecision prec;
+  QudaDagType dagger;
+  int test_type;
   cpuGaugeField *cpuFat;// = NULL;
   cpuGaugeField *cpuLong;// = NULL;
   cpuColorSpinorField *spinor, *spinorOut, *spinorRef;
@@ -102,7 +103,9 @@ class DslashTest : public ::testing::TestWithParam<QudaPrecision> {
 
     setVerbosity(QUDA_VERBOSE);
 
-    prec = GetParam();
+    prec = ::std::tr1::get<0>(GetParam());
+    dagger = ::std::tr1::get<1>(GetParam());
+    test_type = ::std::tr1::get<2>(GetParam());
     gaugeParam = newQudaGaugeParam();
     inv_param = newQudaInvertParam();
 
@@ -482,9 +485,15 @@ TEST_P(DslashTest, verify) {
 
 }
 
+using ::testing::TestWithParam;
+using ::testing::Bool;
+using ::testing::Values;
+using ::testing::Combine;
+
 INSTANTIATE_TEST_CASE_P(StaggeredPrecision,
                         DslashTest,
-                        ::testing::Values(2,4,8));
+                        Combine(Values( QUDA_HALF_PRECISION, QUDA_SINGLE_PRECISION, QUDA_DOUBLE_PRECISION),
+                                Values(QUDA_DAG_NO),Values(0,1)));
 
 
 
