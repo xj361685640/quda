@@ -39,21 +39,24 @@ extern int ydim;
 extern int zdim;
 extern int tdim;
 extern int gridsize_from_cmdline[];
-extern QudaReconstructType link_recon;
+
 
 extern int device;
 extern bool kernel_pack_t;
 
 
 /* variables used for the test */
-class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecision, QudaDagType, int> > {
+class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecision, QudaReconstructType, QudaDagType, int> > {
  protected:
 
-  QudaGaugeParam gaugeParam;
-  QudaInvertParam inv_param;
+
   QudaPrecision prec;
   QudaDagType dagger;
   int test_type;
+  QudaReconstructType link_recon;
+
+  QudaGaugeParam gaugeParam;
+  QudaInvertParam inv_param;
   cpuGaugeField *cpuFat;// = NULL;
   cpuGaugeField *cpuLong;// = NULL;
   cpuColorSpinorField *spinor, *spinorOut, *spinorRef;
@@ -74,6 +77,8 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
 
   DslashTest():cpuFat(NULL),cpuLong(NULL),loops(100),transfer(0)
   {};
+
+  virtual ~DslashTest(){}
 
   void display_test_info()
   {
@@ -104,8 +109,9 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
     setVerbosity(QUDA_VERBOSE);
 
     prec = ::std::tr1::get<0>(GetParam());
-    dagger = ::std::tr1::get<1>(GetParam());
-    test_type = ::std::tr1::get<2>(GetParam());
+    link_recon = ::std::tr1::get<1>(GetParam());
+    dagger = ::std::tr1::get<2>(GetParam());
+    test_type = ::std::tr1::get<3>(GetParam());
     gaugeParam = newQudaGaugeParam();
     inv_param = newQudaInvertParam();
 
@@ -335,7 +341,7 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
     if (cpuFat) delete cpuFat;
     if (cpuLong) delete cpuLong;
 
-    endQuda();
+//    endQuda();
   }
 
   double dslashCUDA(int niter) {
@@ -493,6 +499,7 @@ using ::testing::Combine;
 INSTANTIATE_TEST_CASE_P(StaggeredPrecision,
                         DslashTest,
                         Combine(Values( QUDA_HALF_PRECISION, QUDA_SINGLE_PRECISION, QUDA_DOUBLE_PRECISION),
+                                Values(QUDA_RECONSTRUCT_NO, QUDA_RECONSTRUCT_9, QUDA_RECONSTRUCT_13),
                                 Values(QUDA_DAG_NO),Values(0,1)));
 
 
