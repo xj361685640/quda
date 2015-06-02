@@ -102,11 +102,7 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
   virtual void SetUp()
   {
 
-    initQuda(device);
 
-    setKernelPackT(kernel_pack_t);
-
-    setVerbosity(QUDA_VERBOSE);
 
     prec = ::std::tr1::get<0>(GetParam());
     link_recon = ::std::tr1::get<1>(GetParam());
@@ -322,6 +318,8 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
 
   virtual void TearDown(void)
   {
+    freeGaugeQuda();
+
     for (int dir = 0; dir < 4; dir++) {
       free(fatlink[dir]);
       free(longlink[dir]);
@@ -530,11 +528,15 @@ int main(int argc, char **argv)
   }
 
   initComms(argc, argv, gridsize_from_cmdline);
+  initQuda(device);
 
+  setKernelPackT(kernel_pack_t);
+
+  setVerbosity(QUDA_VERBOSE);
 
 
   int ret = RUN_ALL_TESTS();
-
+  endQuda();
   finalizeComms();
 
   return ret;
