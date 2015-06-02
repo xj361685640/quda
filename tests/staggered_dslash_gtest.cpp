@@ -31,7 +31,7 @@ using namespace quda;
 /* extern variables set using the command line options */
 
 extern void usage(char** argv );
-extern QudaDslashType dslash_type;
+
 // What test are we doing (0 = dslash, 1 = MatPC, 2 = Mat)
 extern bool tune;
 extern int xdim;
@@ -74,11 +74,16 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
   const int transfer;// = 0; // include transfer time in the benchmark?
   int X[4];
   Dirac* dirac;
+  QudaDslashType dslash_type;
 
-  DslashTest():cpuFat(NULL),cpuLong(NULL),loops(100),transfer(0)
+  DslashTest():cpuFat(NULL),cpuLong(NULL),loops(100),transfer(0),dslash_type(QUDA_STAGGERED_DSLASH)
   {};
 
   virtual ~DslashTest(){}
+
+  virtual QudaDslashType myDslashType(){
+     return QUDA_STAGGERED_DSLASH;
+  }
 
   void display_test_info()
   {
@@ -110,6 +115,8 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
     test_type = ::std::tr1::get<3>(GetParam());
     gaugeParam = newQudaGaugeParam();
     inv_param = newQudaInvertParam();
+
+    dslash_type = myDslashType();
 
     gaugeParam.X[0] = X[0] = xdim;
     gaugeParam.X[1] = X[1] = ydim;
@@ -442,7 +449,62 @@ class DslashTest : public ::testing::TestWithParam< ::std::tr1::tuple<QudaPrecis
 
 };
 
+class AsqtadDslashTest : public DslashTest {
+
+  virtual QudaDslashType myDslashType(){
+     return QUDA_ASQTAD_DSLASH;
+  }
+
+};
+
 TEST_P(DslashTest, verify) {
+
+  if (tune) { // warm-up run
+    printfQuda("Tuning...\n");
+    setTuning(QUDA_TUNE_YES);
+    dslashCUDA(1);
+  }
+  printfQuda("Executing %d kernel loops...", loops);
+  double secs = dslashCUDA(loops);
+
+  if (!transfer) *spinorOut = *cudaSpinorOut;
+
+  printfQuda("\n%fms per loop\n", 1000*secs);
+  staggeredDslashRef();
+
+  unsigned long long flops = dirac->Flops();
+  int link_floats = 8*gaugeParam.reconstruct+8*18;
+  int spinor_floats = 8*6*2 + 6;
+  int link_float_size = prec;
+  int spinor_float_size = 0;
+
+  link_floats = test_type ? (2*link_floats) : link_floats;
+  spinor_floats = test_type ? (2*spinor_floats) : spinor_floats;
+
+  int bytes_for_one_site = link_floats * link_float_size + spinor_floats * spinor_float_size;
+  if (prec == QUDA_HALF_PRECISION) bytes_for_one_site += (8*2 + 1)*4;
+
+  printfQuda("GFLOPS = %f\n", 1.0e-9*flops/secs);
+  printfQuda("GB/s = %f\n\n", 1.0*Vh*bytes_for_one_site/((secs/loops)*1e+9));
+
+  double norm2_cpu = norm2(*spinorRef);
+  double norm2_cpu_cuda= norm2(*spinorOut);
+  if (!transfer) {
+    double norm2_cuda= norm2(*cudaSpinorOut);
+    printfQuda("Results: CPU = %f, CUDA=%f, CPU-CUDA = %f\n", norm2_cpu, norm2_cuda, norm2_cpu_cuda);
+  } else {
+    printfQuda("Result: CPU = %f, CPU-QUDA = %f\n",  norm2_cpu, norm2_cpu_cuda);
+  }
+
+  double deviation = pow(10, -(double)(cpuColorSpinorField::Compare(*spinorRef, *spinorOut)));
+  double tol = (inv_param.cuda_prec == QUDA_DOUBLE_PRECISION ? 1e-12 :
+      (inv_param.cuda_prec == QUDA_SINGLE_PRECISION ? 1e-3 : 1e-1));
+  ASSERT_LE(deviation, tol) << "CPU and CUDA implementations do not agree";
+
+
+}
+
+TEST_P(AsqtadDslashTest, verify) {
 
   if (tune) { // warm-up run
     printfQuda("Tuning...\n");
@@ -497,11 +559,15 @@ using ::testing::Combine;
 INSTANTIATE_TEST_CASE_P(StaggeredPrecision,
                         DslashTest,
                         Combine(Values( QUDA_HALF_PRECISION, QUDA_SINGLE_PRECISION, QUDA_DOUBLE_PRECISION),
-                                Values(QUDA_RECONSTRUCT_NO, QUDA_RECONSTRUCT_9, QUDA_RECONSTRUCT_13),
+                                Values(QUDA_RECONSTRUCT_NO, QUDA_RECONSTRUCT_8, QUDA_RECONSTRUCT_12),
                                 Values(QUDA_DAG_NO),Values(0,1)));
 
 
-
+INSTANTIATE_TEST_CASE_P(StaggeredPrecision,
+                        AsqtadDslashTest,
+                        Combine(Values( QUDA_HALF_PRECISION, QUDA_SINGLE_PRECISION, QUDA_DOUBLE_PRECISION),
+                                Values(QUDA_RECONSTRUCT_NO, QUDA_RECONSTRUCT_9, QUDA_RECONSTRUCT_13),
+                                Values(QUDA_DAG_NO),Values(0,1)));
 
 void usage_extra(char** argv )
 {
