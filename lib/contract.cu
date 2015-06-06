@@ -317,6 +317,7 @@ namespace quda {
 
     profile.Start(QUDA_PROFILE_COMPUTE);
     contract->apply(streams[Nstream-1]);
+    cudaDeviceSynchronize();
     profile.Stop(QUDA_PROFILE_COMPUTE);
 
     profile.Start(QUDA_PROFILE_EPILOGUE);
