@@ -55,7 +55,7 @@ BLAS_INLN = blas_core.h blas_mixed_core.h
 REDUCE_INLN = reduce_core.h reduce_mixed_core.h multi_reduce_core.h
 
 # These are only inlined into cuda_color_spinor_field.cu
-CSF_INLN = 
+CSF_INLN =
 
 # These are only inlined into dslash_quda.cu
 DSLASH_INLN = dslash_constants.h dslash_textures.h io_spinor.h	\
@@ -159,7 +159,7 @@ else
   MAXREG = --maxrregcount=80
 endif
 
-all: $(QUDA)
+all: $(QUDA) quda.mk
 
 
 $(QUDA): $(QUDA_OBJS) version.o ../make.inc
@@ -181,6 +181,12 @@ gen:
 
 mpi_nvtx:
 	$(PYTHON) generate/wrap.py -g -o nvtx_pmpi.c generate/nvtx.w
+
+QUDALD="QUDA_ADD_LDFLAGS="
+QUDALD+=$(LIB)
+
+quda.mk:
+	@echo $(QUDALD) > quda.mk
 
 clean:
 	-rm -f *.o $(QUDA)
@@ -274,4 +280,4 @@ quda_fortran.o: quda_fortran.F90 ../include/enum_quda_fortran.h
 	$(CC) -Wall -E -I../include $< > $*.f90
 	$(F90) -c $*.f90
 
-.PHONY: all gen clean
+.PHONY: all gen clean quda.mk
