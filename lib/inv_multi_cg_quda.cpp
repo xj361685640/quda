@@ -268,7 +268,10 @@ namespace quda {
 		      reliable_shift, sqrt(r2[reliable_shift]), r0Norm[reliable_shift], resIncreaseTotal[reliable_shift]);
 
 
-	  if (resIncrease > maxResIncrease or resIncreaseTotal[reliable_shift] > maxResIncreaseTotal) break; // check if we reached the limit of our tolerancebreak;
+	  if (resIncrease > maxResIncrease or resIncreaseTotal[reliable_shift] > maxResIncreaseTotal){ //break; // check if we reached the limit of our tolerancebreak;
+    if (num_offset_now > 0) num_offset_now--;
+    else break;
+  }
 	} else {
 	  resIncrease = 0;
 	}
@@ -287,12 +290,16 @@ namespace quda {
 	  axpbyCuda(zeta[j], *r_sloppy, beta[j], *p[j]);
 	}    
 
-	// update reliable update parameters for the system that triggered the update
-	int m = reliable_shift;
-	rNorm[m] = sqrt(r2[0]) * zeta[m];
-	maxrr[m] = rNorm[m];
-	maxrx[m] = rNorm[m];
-	r0Norm[m] = rNorm[m];      
+	// update reliable update parameters for all shifts
+        rNorm[0] = sqrt(r2[0]);
+	for (int j=0; j<num_offset_now; j++){
+          if (j>0) rNorm[j] = sqrt(r2[0]) * zeta[j];
+	  maxrr[j] = rNorm[j];
+ 	  maxrx[j] = rNorm[j];
+	  r0Norm[j] = rNorm[j];
+        }      
+
+
 	rUpdate++;
       }    
 
