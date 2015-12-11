@@ -48,6 +48,10 @@ namespace quda {
     csParam.create = QUDA_ZERO_FIELD_CREATE;
     cudaColorSpinorField y(b, csParam); 
   
+    mat(r, b , y);
+    double normest = sqrt(norm2(r)/b2);
+    printfQuda("normest %e %e %e",norm2(r),b2,norm2(r)/b2);
+
     mat(r, x, y);
 
     double r2 = xmyNormCuda(b, r);
@@ -126,6 +130,18 @@ namespace quda {
     double maxrr = rNorm;
     double delta = param.delta;
 
+    // MW: alternative reliable updates
+    const double Anorm = sqrt(4*0.05*0.05);//(param.mass * param.mass;
+
+    printfQuda("Norm estimate %e %e",Anorm,normest);
+    double xNorm=0;
+    double d_new;
+    double d;
+    double dinit;
+    const double u=5e-4;
+    const double uhigh=1e-16;
+    const double deps=sqrt(u);
+
     // this parameter determines how many consective reliable update
     // reisudal increases we tolerate before terminating the solver,
     // i.e., how long do we want to keep trying to converge
@@ -153,6 +169,9 @@ namespace quda {
 
     int steps_since_reliable = 1;
     bool converged = convergence(r2, heavy_quark_res, stop, param.tol_hq);
+
+    dinit= uhigh * (rNorm + Anorm * xNorm);
+    d= dinit;
 
     while ( !converged && k < param.maxiter) {
       matSloppy(Ap, p, tmp, tmp2); // tmp as tmp
@@ -188,11 +207,14 @@ namespace quda {
 
       // reliable update conditions
       rNorm = sqrt(r2);
-      if (rNorm > maxrx) maxrx = rNorm;
-      if (rNorm > maxrr) maxrr = rNorm;
-      int updateX = (rNorm < delta*r0Norm && r0Norm <= maxrx) ? 1 : 0;
-      int updateR = ((rNorm < delta*maxrr && r0Norm <= maxrr) || updateX) ? 1 : 0;
-    
+
+//      if (rNorm > maxrx) maxrx = rNorm;
+//      if (rNorm > maxrr) maxrr = rNorm;
+//      int updateX = (rNorm < delta*r0Norm && r0Norm <= maxrx) ? 1 : 0;
+//      int updateR = ((rNorm < delta*maxrr && r0Norm <= maxrr) || updateX) ? 1 : 0;
+      int updateX = (d <= deps*sqrt(r2_old)) and (d_new > deps*rNorm) and (d_new > 1.1 *dinit);
+      printfQuda("new reliable update conditions (%i) d_n-1 < eps r2_old %e %e;\t dn > eps r_n %e %e (dinit %e)\n",updateX,d,deps*sqrt(r2_old),d_new,deps*rNorm,dinit);
+      int updateR=0;
       // force a reliable update if we are within target tolerance (only if doing reliable updates)
       if ( convergence(r2, heavy_quark_res, stop, param.tol_hq) && param.delta >= param.tol) updateX = 1;
 
@@ -218,10 +240,13 @@ namespace quda {
 	    heavy_quark_res = sqrt(xpyHeavyQuarkResidualNormCuda(x, y, r).z);	  
 	  }
 	}
-
+d = d_new;
+d_new = d + u*rNorm + uhigh*Anorm * sqrt(norm2(x));
 	steps_since_reliable++;
+
       } else {
 
+        printfQuda("\tReliable update\n");
 	axpyCuda(alpha, p, xSloppy);
 	copyCuda(x, xSloppy); // nop when these pointers alias
       
@@ -232,6 +257,9 @@ namespace quda {
 	copyCuda(rSloppy, r); //nop when these pointers alias
 	zeroCuda(xSloppy);
 
+	dinit = uhigh*(sqrt(r2) + Anorm * sqrt(norm2(y)));
+  printfQuda("New dinit: %e (r %e , y %e)",dinit,uhigh*sqrt(r2),uhigh*Anorm*sqrt(norm2(y)));
+	d_new = dinit;
 	// calculate new reliable HQ resididual
 	if (use_heavy_quark_res) heavy_quark_res = sqrt(HeavyQuarkResidualNormCuda(y, r).z);
 
