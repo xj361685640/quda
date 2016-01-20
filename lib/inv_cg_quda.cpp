@@ -131,7 +131,7 @@ namespace quda {
     double delta = param.delta;
 
     // MW: alternative reliable updates
-    const double Anorm = sqrt(4*0.05*0.05);//(param.mass * param.mass;
+    const double Anorm = normest; //sqrt(4*0.05*0.05);//(param.mass * param.mass;
 
     printfQuda("Norm estimate %e %e",Anorm,normest);
     double xNorm=0;
@@ -139,7 +139,7 @@ namespace quda {
     double d;
     double dinit;
     const double u=5e-4;
-    const double uhigh=1e-16;
+    const double uhigh=1e-16; //MW: set this automatically depending on QUDA precision
     const double deps=sqrt(u);
 
     // this parameter determines how many consective reliable update
