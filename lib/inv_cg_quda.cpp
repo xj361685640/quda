@@ -138,8 +138,8 @@ namespace quda {
     double d_new;
     double d;
     double dinit;
-    const double u=5e-4;
-    const double uhigh=1e-16; //MW: set this automatically depending on QUDA precision
+    const double u=5*pow(10.,-2*param.precision_sloppy);
+    const double uhigh=1*pow(10.,-2*param.precision); //MW: set this automatically depending on QUDA precision
     const double deps=sqrt(u);
 
     // this parameter determines how many consective reliable update
