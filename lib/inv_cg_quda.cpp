@@ -213,7 +213,7 @@ namespace quda {
 //      int updateX = (rNorm < delta*r0Norm && r0Norm <= maxrx) ? 1 : 0;
 //      int updateR = ((rNorm < delta*maxrr && r0Norm <= maxrr) || updateX) ? 1 : 0;
       int updateX = (d <= deps*sqrt(r2_old)) and (d_new > deps*rNorm) and (d_new > 1.1 *dinit);
-      printfQuda("new reliable update conditions (%i) d_n-1 < eps r2_old %e %e;\t dn > eps r_n %e %e (dinit %e)\n",updateX,d,deps*sqrt(r2_old),d_new,deps*rNorm,dinit);
+//      printfQuda("new reliable update conditions (%i) d_n-1 < eps r2_old %e %e;\t dn > eps r_n %e %e (dinit %e)\n",updateX,d,deps*sqrt(r2_old),d_new,deps*rNorm,dinit);
       int updateR=0;
       // force a reliable update if we are within target tolerance (only if doing reliable updates)
       if ( convergence(r2, heavy_quark_res, stop, param.tol_hq) && param.delta >= param.tol) updateX = 1;
