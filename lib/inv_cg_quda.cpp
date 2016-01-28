@@ -248,8 +248,8 @@ namespace quda {
 d = d_new;
 
 //xnorm = sqrt(norm2(x));
-pnorm = pnorm + alpha * sqrt(ppnorm);//sqrt(norm2(p));
-xnorm = pnorm;
+pnorm = pnorm + alpha * alpha* (ppnorm);//sqrt(norm2(p));
+xnorm = sqrt(pnorm);
 d_new = d + u*rNorm + uhigh*Anorm * xnorm;
 	steps_since_reliable++;
 
