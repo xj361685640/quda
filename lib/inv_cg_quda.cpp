@@ -129,6 +129,9 @@ namespace quda {
     double maxrx = rNorm;
     double maxrr = rNorm;
     double delta = param.delta;
+    double xnorm = 0;
+    double pnorm = 0;
+    double ppnorm = 0;
 
     // MW: alternative reliable updates
     const double Anorm = normest; //sqrt(4*0.05*0.05);//(param.mass * param.mass;
@@ -196,7 +199,9 @@ namespace quda {
 	r2 = sigma;
       } else {
 	r2_old = r2;
-	pAp = reDotProductCuda(p, Ap);
+	double3 pAppp = cDotProductNormACuda(p,Ap);
+	pAp = pAppp.x;//reDotProductCuda(p, Ap);
+	ppnorm = pAppp.z;
 	alpha = r2 / pAp;        
 
 	// here we are deploying the alternative beta computation 
@@ -241,7 +246,11 @@ namespace quda {
 	  }
 	}
 d = d_new;
-d_new = d + u*rNorm + uhigh*Anorm * sqrt(norm2(x));
+
+//xnorm = sqrt(norm2(x));
+pnorm = pnorm + alpha * sqrt(ppnorm);//sqrt(norm2(p));
+xnorm = pnorm;
+d_new = d + u*rNorm + uhigh*Anorm * xnorm;
 	steps_since_reliable++;
 
       } else {
@@ -258,6 +267,8 @@ d_new = d + u*rNorm + uhigh*Anorm * sqrt(norm2(x));
 	zeroCuda(xSloppy);
 
 	dinit = uhigh*(sqrt(r2) + Anorm * sqrt(norm2(y)));
+	xnorm = 0;//sqrt(norm2(x));
+	pnorm = 0;//pnorm + alpha * sqrt(norm2(p));
   printfQuda("New dinit: %e (r %e , y %e)",dinit,uhigh*sqrt(r2),uhigh*Anorm*sqrt(norm2(y)));
 	d_new = dinit;
 	// calculate new reliable HQ resididual
@@ -315,6 +326,7 @@ d_new = d + u*rNorm + uhigh*Anorm * sqrt(norm2(x));
       }
 
       breakdown = false;
+//      printfQuda("XPNorm %i %e %e \n",k,xnorm,pnorm);
       k++;
 
       PrintStats("CG", k, r2, b2, heavy_quark_res);
