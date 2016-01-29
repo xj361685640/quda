@@ -229,6 +229,26 @@ namespace quda {
     profile.TPSTOP(QUDA_PROFILE_INIT);
     profile.TPSTART(QUDA_PROFILE_PREAMBLE);
 
+    mat(*r, b);
+    if (r->Nspin()==4) axpyCuda(offset[0], b, *r);
+    double normest = sqrt(norm2(*r)/b2);
+    copyCuda(*r,b);
+    double xnorm = 0;
+    double pnorm = 0;
+    double ppnorm = 0;
+
+    // MW: alternative reliable updates
+    const double Anorm = normest; //sqrt(4*0.05*0.05);//(param.mass * param.mass;
+
+    if(reliable)  printfQuda("Norm estimate %e %e\n",Anorm,normest);
+    double xNorm=0;
+    double d_new;
+    double d;
+    double dinit;
+    const double u=5*pow(10.,-2*param.precision_sloppy);
+    const double uhigh=1*pow(10.,-2*param.precision); //MW: set this automatically depending on QUDA precision
+    const double deps=sqrt(u);
+
     // stopping condition of each shift
     double stop[QUDA_MAX_MULTI_SHIFT];
     double r2[QUDA_MAX_MULTI_SHIFT];
@@ -263,7 +283,8 @@ namespace quda {
     for (int i=0; i<num_offset; i++) {
       resIncreaseTotal[i]=0;
     }
-
+    dinit= uhigh * (rNorm[0] ); // use initial guess=0 here
+    d= dinit;
     int k = 0;
     int rUpdate = 0;
     quda::blas_flops = 0;
@@ -293,7 +314,10 @@ namespace quda {
       // FIXME - this should be curried into the Dirac operator
       if (r->Nspin()==4) axpyCuda(offset[0], *p[0], *Ap); 
 
-      pAp = reDotProductCuda(*p[0], *Ap);
+//      pAp = reDotProductCuda(*p[0], *Ap);
+      double3 pAppp = cDotProductNormACuda(*p[0], *Ap);
+      pAp = pAppp.x;//reDotProductCuda(p, Ap);
+      ppnorm = pAppp.z;
 
       // compute zeta and alpha
       updateAlphaZeta(alpha, zeta, zeta_old, r2, beta, pAp, offset, num_offset_now, j_low);
@@ -312,10 +336,16 @@ namespace quda {
       //fixme: The loop below is unnecessary but I don't want to delete it as we still might find a better reliable update
       int reliable_shift = -1; // this is the shift that sets the reliable_shift
       for (int j=0; j>=0; j--) {
-        if (rNorm[j] > maxrx[j]) maxrx[j] = rNorm[j];
-        if (rNorm[j] > maxrr[j]) maxrr[j] = rNorm[j];
-        updateX = (rNorm[j] < delta*r0Norm[j] && r0Norm[j] <= maxrx[j]) ? 1 : updateX;
-        updateR = ((rNorm[j] < delta*maxrr[j] && r0Norm[j] <= maxrr[j]) || updateX) ? 1 : updateR;
+//        if (rNorm[j] > maxrx[j]) maxrx[j] = rNorm[j];
+//        if (rNorm[j] > maxrr[j]) maxrr[j] = rNorm[j];
+//        updateX = (rNorm[j] < delta*r0Norm[j] && r0Norm[j] <= maxrx[j]) ? 1 : updateX;
+//        updateR = ((rNorm[j] < delta*maxrr[j] && r0Norm[j] <= maxrr[j]) || updateX) ? 1 : updateR;
+//        if ((updateX || updateR) && reliable_shift == -1) reliable_shift = j;
+        printfQuda("Checking reliable update conditions (%e < %e) and ( %e > %e ) and (%e > %e)\n",
+                   d,deps*sqrt(r2_old), d_new, deps*rNorm[0],d_new ,1.1 *dinit);
+
+         updateX = (d <= deps*sqrt(r2_old)) and (d_new > deps*rNorm[0]) and (d_new > 1.1 *dinit);
+//        int updateR=0;
         if ((updateX || updateR) && reliable_shift == -1) reliable_shift = j;
       }
 
@@ -324,6 +354,13 @@ namespace quda {
 	beta[0] = zn / r2_old;
 	// update p[0] and x[0]
 	axpyZpbxCuda(alpha[0], *p[0], *x_sloppy[0], *r_sloppy, beta[0]);	
+
+	d = d_new;
+
+	//xnorm = sqrt(norm2(x));
+	pnorm = pnorm + alpha[0] * alpha[0]* (ppnorm);//sqrt(norm2(p));
+	xnorm = sqrt(pnorm);
+	d_new = d + u*rNorm[0] + uhigh*Anorm * xnorm;
 
 	// this should trigger the shift update in the subsequent sloppy dslash
 	aux_update = true;
@@ -348,7 +385,13 @@ namespace quda {
 	for (int j=1; j<num_offset_now; j++) r2[j] = zeta[j] * zeta[j] * r2[0];
 	for (int j=0; j<num_offset_now; j++) zeroCuda(*x_sloppy[j]);
 
-	copyCuda(*r_sloppy, *r);            
+	copyCuda(*r_sloppy, *r);
+  dinit = uhigh*(sqrt(r2[0]) + Anorm * sqrt(norm2(*y[0])));
+  xnorm = 0;//sqrt(norm2(x));
+  pnorm = 0;//pnorm + alpha * sqrt(norm2(p));
+  printfQuda("New dinit: %e\n",dinit);
+  d_new = dinit;
+
 
 	// break-out check if we have reached the limit of the precision
 	if (sqrt(r2[reliable_shift]) > r0Norm[reliable_shift]) { // reuse r0Norm for this
