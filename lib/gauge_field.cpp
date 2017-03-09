@@ -128,7 +128,7 @@ namespace quda {
   }
 
 
-   GaugeField* Create(const GaugeFieldParam &param){
+   GaugeField* GaugeField::Create(const GaugeFieldParam &param){
 
     GaugeField *field = NULL;
     if (param.location == QUDA_CPU_FIELD_LOCATION) {
@@ -142,7 +142,7 @@ namespace quda {
     return field;
   }
 
-  GaugeField* Create(const GaugeField &src, const GaugeFieldParam &param){
+  GaugeField* GaugeField::Create(const GaugeField &src, const GaugeFieldParam &param){
   
     GaugeField *field = NULL;
     // if (param.location == QUDA_CPU_FIELD_LOCATION) {
