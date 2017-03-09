@@ -11,6 +11,7 @@ namespace quda {
     int nColor;
     int nFace;
 
+    QudaFieldLocation location;
     QudaReconstructType reconstruct;
     QudaGaugeFieldOrder order;
     QudaGaugeFixed fixed;
@@ -65,8 +66,8 @@ namespace quda {
 
   GaugeFieldParam(const int *x, const QudaPrecision precision, const QudaReconstructType reconstruct,
 		  const int pad, const QudaFieldGeometry geometry,
-		  const QudaGhostExchange ghostExchange=QUDA_GHOST_EXCHANGE_PAD) 
-    : LatticeFieldParam(4, x, pad, precision, ghostExchange), nColor(3), nFace(0), reconstruct(reconstruct),
+		  const QudaGhostExchange ghostExchange=QUDA_GHOST_EXCHANGE_PAD, const QudaFieldLocation location=QUDA_CUDA_FIELD_LOCATION) 
+    : LatticeFieldParam(4, x, pad, precision, ghostExchange), nColor(3), nFace(0), location(location), reconstruct(reconstruct),
       order(QUDA_INVALID_GAUGE_ORDER), fixed(QUDA_GAUGE_FIXED_NO),
       link_type(QUDA_WILSON_LINKS), t_boundary(QUDA_INVALID_T_BOUNDARY), anisotropy(1.0),
       tadpole(1.0), scale(1.0), gauge(0), create(QUDA_NULL_FIELD_CREATE), geometry(geometry),
@@ -75,7 +76,7 @@ namespace quda {
       { }
 
   GaugeFieldParam(void *h_gauge, const QudaGaugeParam &param, QudaLinkType link_type_=QUDA_INVALID_LINKS)
-    : LatticeFieldParam(param), nColor(3), nFace(0), reconstruct(QUDA_RECONSTRUCT_NO),
+    : LatticeFieldParam(param), nColor(3), nFace(0), location(param.location), reconstruct(QUDA_RECONSTRUCT_NO),
       order(param.gauge_order), fixed(param.gauge_fix),
       link_type(link_type_ != QUDA_INVALID_LINKS ? link_type_ : param.type), t_boundary(param.t_boundary),
       anisotropy(param.anisotropy), tadpole(param.tadpole_coeff), scale(param.scale), gauge(h_gauge),
@@ -217,6 +218,9 @@ namespace quda {
       if ( isNative() ) errorQuda("No ghost zone pointer for quda-native gauge fields");
       return ghost;
     }
+
+    static GaugeField* Create(const GaugeFieldParam &param);
+    static GaugeField* Create(const GaugeField &src, const GaugeFieldParam &param);
 
     /**
        Set all field elements to zero (virtual)

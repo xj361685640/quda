@@ -127,6 +127,37 @@ namespace quda {
     return false;
   }
 
+
+   GaugeField* Create(const GaugeFieldParam &param){
+
+    GaugeField *field = NULL;
+    if (param.location == QUDA_CPU_FIELD_LOCATION) {
+      field = new cpuGaugeField(param);
+    } else if (param.location== QUDA_CUDA_FIELD_LOCATION) {
+      field = new cudaGaugeField(param);
+    } else {
+      errorQuda("Invalid field location %d", param.location);
+    }
+
+    return field;
+  }
+
+  GaugeField* Create(const GaugeField &src, const GaugeFieldParam &param){
+  
+    GaugeField *field = NULL;
+    // if (param.location == QUDA_CPU_FIELD_LOCATION) {
+    //   field = new cpuGaugeField(src, param);
+    // } else if (param.location== QUDA_CUDA_FIELD_LOCATION) {
+    //   field = new cudaGaugeField(src, param);
+    // } else {
+      errorQuda("Cannot yet create field from src and location %d", param.location);
+    // }
+
+    return field;
+  }
+
+
+
   void GaugeField::exchange(void **ghost_link, void **link_sendbuf, QudaDirection dir) const {
     MsgHandle *mh_send[4];
     MsgHandle *mh_recv[4];
