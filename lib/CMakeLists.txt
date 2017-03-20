@@ -136,6 +136,14 @@ target_link_libraries(quda ${CUDA_CUDA_LIBRARY})
 
 # until we define an install step copy the include directory to the build directory
 ADD_CUSTOM_COMMAND(TARGET quda POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
+
+
+if(COMP_CAP)
+  set(FOO_STRING "foo")
+endif()
+configure_file(${CMAKE_SOURCE_DIR}/include/qudaconfigure.h.in ${CMAKE_BINARY_DIR}/include/qudaconfigure.h @ONLY)
+
+
 # some hackery to prevent having old shared / static builds of quda messing with the current build
 ADD_CUSTOM_COMMAND(TARGET quda PRE_LINK COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_CURRENT_BINARY_DIR}/libquda.a ${CMAKE_CURRENT_BINARY_DIR}/libquda.so)
 

@@ -1,0 +1,15 @@
+#ifndef _QUDACONFIGURE_H
+#define _QUDACONFIGURE_H
+
+/**
+ * @file  qudacxx.h
+ * @brief Compile time definitons need when using the C++ interface of the QUDA library
+ *
+ */
+
+
+
+#define __COMPUTE_CAPABILITY__ @COMP_CAP@
+
+
+#endif
