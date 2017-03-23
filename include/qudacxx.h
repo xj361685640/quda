@@ -15,7 +15,9 @@
 #include <gauge_field.h>
 #include <blas_quda.h>
 
-void computeKSLinkQuda(cudaGaugeField* cudaFatLink, cudaGaugeField* cudaLongLink, cudaGaugeField* cudaUnitarizedLink, cudaGaugeField* cudaInLink, double *path_coeff, QudaGaugeParam *param) {
+namespace quda{
+void computeKSLinkQuda(cudaGaugeField* cudaFatLink, cudaGaugeField* cudaLongLink, cudaGaugeField* cudaUnitarizedLink, cudaGaugeField* cudaInLink, double *path_coeff, QudaGaugeParam *param);
+}
 
 
 #endif /* _QUDACXX_H */
