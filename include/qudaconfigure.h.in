@@ -3,13 +3,44 @@
 
 /**
  * @file  qudacxx.h
- * @brief Compile time definitons need when using the C++ interface of the QUDA library
+ * @brief Compile time definitons needed when using the C++ interface of the QUDA library
  *
  */
 
 
+/*
+  #ifdef __cplusplus
+#ifdef ARPACK_LIB
+#ifdef DIRECT_ACCESS_BLAS
+#ifdef DIRECT_ACCESS_BLAS
+#ifdef HAVE_QIO
+#ifdef HOST_DEBUG
+#ifdef INTERFACE_NVTX
+#ifdef MULTI_GPU
+#ifdef PTHREADS
+#ifdef QMP_COMMS
+#ifdef USE_TEXTURE_OBJECTS
+#ifdef USE_TEXTURE_OBJECTS
+#ifdef USE_TEXTURE_OBJECTS // texture objects
+#ifdef __CUDA_ARCH__
+#ifdef __cplusplus
+*/
+
 
 #define __COMPUTE_CAPABILITY__ @COMP_CAP@
 
+// currently used ifdefs 
+#cmakedefine ARPACK_LIB
+#cmakedefine DIRECT_ACCESS_BLAS
+#cmakedefine HAVE_QIO
+#cmakedefine HOST_DEBUG
+#cmakedefine INTERFACE_NVTX
+#cmakedefine MULTI_GPU
+#cmakedefine PTHREADS
+#cmakedefine QMP_COMMS
+#cmakedefine MPI_COMMS
+#cmakedefine MULTI_GPU
+#cmakedefine USE_TEXTURE_OBJECTS
+#cmakedefine FERMI_NO_DBLE_TEX
 
 #endif
