@@ -20,6 +20,7 @@ before_install:
     - CUDA_APT=${CUDA_APT/./-}
     #- sudo apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT} cuda-cufft-dev-${CUDA_APT}
     - sudo apt-get install cuda
+    - sudo apt-get install openmpi-bin openmpi-doc libopenmpi-dev
     - sudo apt-get clean
     - CUDA_HOME=/usr/local/cuda-${CUDA:0:3}
     - LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
@@ -33,6 +34,6 @@ before_script:
 
     - mkdir build
     - cd build
-    - cmake .. 
+    - cmake .. -DQUDA_MPI=ON
 
 script: make -j2
