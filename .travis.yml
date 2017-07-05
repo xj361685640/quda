@@ -36,4 +36,4 @@ before_script:
     - cd build
     - cmake .. -GNinja -DQUDA_MPI=ON
 
-script: ninja 
+script: travis_wait 60 ninja 
