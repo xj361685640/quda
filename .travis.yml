@@ -34,6 +34,6 @@ before_script:
 
     - mkdir build
     - cd build
-    - cmake .. -DQUDA_MPI=ON -DQUDA_GPU_ARCH=compute_60
+    - cmake .. -GNinja -DQUDA_MPI=ON -DQUDA_GPU_ARCH=compute_60
 
 script: ninja
