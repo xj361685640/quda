@@ -28,7 +28,7 @@ before_install:
     - wget https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-linux.zip
     - unzip ninja-linux.zip
     - wget https://cmake.org/files/v3.9/cmake-3.9.0-Linux-x86_64.sh
-    - sh cmake-3.9.0-Linux-x86_64.sh --prefix=${HOME}
+    - sh cmake-3.9.0-Linux-x86_64.sh --prefix=${HOME} --skip-license
     - pwd
     - PATH=${PATH}:${PWD}
 
