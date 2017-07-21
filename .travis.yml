@@ -27,6 +27,8 @@ before_install:
     - PATH=${CUDA_HOME}/bin:${PATH} 
     - wget https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-linux.zip
     - unzip ninja-linux.zip
+    - wget https://cmake.org/files/v3.9/cmake-3.9.0-Linux-x86_64.sh
+    - sh cmake-3.9.0-Linux-x86_64.sh --prefix=${HOME}
     - pwd
     - PATH=${PATH}:${PWD}
 
@@ -34,7 +36,7 @@ before_script:
 
     - mkdir build
     - cd build
-    - cmake .. -GNinja -DQUDA_MPI=ON -DCMAKE_CXX_CLANG_TIDY:STRING="clang-tidy;-checks=*,readability-*,modernize-*" -DQUDA_GPU_ARCH=compute_60
+    - cmake .. -GNinja -DBUILD_TYPE=STRICT -DQUDA_MPI=ON -DCMAKE_CXX_CLANG_TIDY:STRING="clang-tidy;-checks=*,readability-*,modernize-*" -DQUDA_GPU_ARCH=compute_60
 
 # we build only quda_cpp here
-script: ninja quda_cpp
+script: ninja -k6 quda_cpp
