@@ -9,8 +9,8 @@ env:
 
 
 compiler:
-  #- clang
-  - gcc
+  - clang
+  #- gcc
   
 before_install:
     - wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_${CUDA}_amd64.deb
@@ -34,6 +34,7 @@ before_script:
 
     - mkdir build
     - cd build
-    - cmake .. -GNinja -DQUDA_MPI=ON -DQUDA_GPU_ARCH=compute_60
+    - cmake .. -GNinja -DQUDA_MPI=ON -DCMAKE_CXX_CLANG_TIDY:STRING="clang-tidy;-checks=*,readability-*,modernize-*" -DQUDA_GPU_ARCH=compute_60
 
-script: ninja
+# we build only quda_cpp here
+script: ninja quda_cpp
