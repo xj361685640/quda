@@ -3,6 +3,11 @@ language: cpp
 sudo: enabled
 dist: trusty
 
+addons:
+  apt:
+    packages:
+    - llvm-toolchain-trusty-4.0
+    
 
 env: 
   - CUDA=8.0.61-1
