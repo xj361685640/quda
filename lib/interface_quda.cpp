@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string.h>
 #include <sys/time.h>
+#include <memory>
 
 #include <quda.h>
 #include <quda_fortran.h>
@@ -112,10 +113,12 @@ void closeMagma(){
   return;
 }
 
-cudaGaugeField *gaugePrecise = NULL;
-cudaGaugeField *gaugeSloppy = NULL;
-cudaGaugeField *gaugePrecondition = NULL;
-cudaGaugeField *gaugeExtended = NULL;
+
+//  These shoudl be non-owning pointers
+cudaGaugeField *gaugePrecise = nullptr;
+cudaGaugeField *gaugeSloppy = nullptr;
+cudaGaugeField *gaugePrecondition = nullptr;
+cudaGaugeField *gaugeExtended = nullptr;
 
 // It's important that these alias the above so that constants are set correctly in Dirac::Dirac()
 cudaGaugeField *&gaugeFatPrecise = gaugePrecise;
@@ -124,19 +127,42 @@ cudaGaugeField *&gaugeFatPrecondition = gaugePrecondition;
 cudaGaugeField *&gaugeFatExtended = gaugeExtended;
 
 
-cudaGaugeField *gaugeLongExtended = NULL;
-cudaGaugeField *gaugeLongPrecise = NULL;
-cudaGaugeField *gaugeLongSloppy = NULL;
-cudaGaugeField *gaugeLongPrecondition = NULL;
+cudaGaugeField *gaugeLongExtended = nullptr;
+cudaGaugeField *gaugeLongPrecise = nullptr;
+cudaGaugeField *gaugeLongSloppy = nullptr;
+cudaGaugeField *gaugeLongPrecondition = nullptr;
 
-cudaGaugeField *gaugeSmeared = NULL;
+cudaGaugeField *extendedGaugeResident = nullptr;
+cudaGaugeField *gaugeSmeared = nullptr;
 
+// these may alias
+std::shared_ptr<cudaGaugeField> _gaugePrecise;
+std::shared_ptr<cudaGaugeField> _gaugeSloppy;
+std::shared_ptr<cudaGaugeField> _gaugePrecondition;
+std::shared_ptr<cudaGaugeField> _gaugeExtended;
+
+// these may alias
+std::shared_ptr<cudaGaugeField> &_gaugeFatPrecise = _gaugePrecise;;
+std::shared_ptr<cudaGaugeField> &_gaugeFatSloppy = _gaugeSloppy;
+std::shared_ptr<cudaGaugeField> &_gaugeFatPrecondition = _gaugePrecondition;
+std::shared_ptr<cudaGaugeField> &_gaugeFatExtended = _gaugeExtended;
+
+// these may alias
+std::shared_ptr<cudaGaugeField> _gaugeLongPrecise;
+std::shared_ptr<cudaGaugeField> _gaugeLongSloppy;
+std::shared_ptr<cudaGaugeField> _gaugeLongPrecondition;
+std::shared_ptr<cudaGaugeField> _gaugeLongExtended;
+
+std::unique_ptr<cudaGaugeField> _extendedGaugeResident;
+std::unique_ptr<cudaGaugeField> _gaugeSmeared;
+//TODO ignore clover for now - but th
+ 
 cudaCloverField *cloverPrecise = NULL;
 cudaCloverField *cloverSloppy = NULL;
 cudaCloverField *cloverPrecondition = NULL;
 
 cudaGaugeField *momResident = NULL;
-cudaGaugeField *extendedGaugeResident = NULL;
+
 
 std::vector<cudaColorSpinorField*> solutionResident;
 
@@ -593,9 +619,9 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
     gauge_param.compute_fat_link_max = true;
 
   if (gauge_param.order <= 4) gauge_param.ghostExchange = QUDA_GHOST_EXCHANGE_NO;
-  GaugeField *in = (param->location == QUDA_CPU_FIELD_LOCATION) ?
+  std::unique_ptr<GaugeField> in ((param->location == QUDA_CPU_FIELD_LOCATION) ?
     static_cast<GaugeField*>(new cpuGaugeField(gauge_param)) :
-    static_cast<GaugeField*>(new cudaGaugeField(gauge_param));
+    static_cast<GaugeField*>(new cudaGaugeField(gauge_param)));
 
   if (in->Order() == QUDA_BQCD_GAUGE_ORDER) {
     static size_t checksum = SIZE_MAX;
@@ -604,7 +630,7 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
       if (getVerbosity() >= QUDA_VERBOSE) printfQuda("Gauge field unchanged - using cached gauge field %lu\n", checksum);
       profileGauge.TPSTOP(QUDA_PROFILE_INIT);
       profileGauge.TPSTOP(QUDA_PROFILE_TOTAL);
-      delete in;
+      // delete in;
       invalidate_clover = false;
       return;
     }
@@ -613,31 +639,32 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
   }
 
   // free any current gauge field before new allocations to reduce memory overhead
+  // note this only sets the shared ptrs .. need to attach the raw pointers again later
   switch (param->type) {
     case QUDA_WILSON_LINKS:
-      if (gaugeSloppy != gaugePrecondition && gaugePrecondition) delete gaugePrecondition;
-      if (gaugePrecise != gaugeSloppy && gaugeSloppy) delete gaugeSloppy;
-      if (gaugePrecise && !param->use_resident_gauge) delete gaugePrecise;
+      _gaugePrecondition.reset();
+      _gaugeSloppy.reset();
+      if (!param->use_resident_gauge) _gaugePrecise.reset();
       break;
     case QUDA_ASQTAD_FAT_LINKS:
-      if (gaugeFatSloppy != gaugeFatPrecondition && gaugeFatPrecondition) delete gaugeFatPrecondition;
-      if (gaugeFatPrecise != gaugeFatSloppy && gaugeFatSloppy) delete gaugeFatSloppy;
-      if (gaugeFatPrecise && !param->use_resident_gauge) delete gaugeFatPrecise;
+      _gaugeFatPrecondition.reset();
+      _gaugeFatSloppy.reset();
+      if (!param->use_resident_gauge) _gaugeFatPrecise.reset();
       break;
     case QUDA_ASQTAD_LONG_LINKS:
-      if (gaugeLongSloppy != gaugeLongPrecondition && gaugeLongPrecondition) delete gaugeLongPrecondition;
-      if (gaugeLongPrecise != gaugeLongSloppy && gaugeLongSloppy) delete gaugeLongSloppy;
-      if (gaugeLongPrecise) delete gaugeLongPrecise;
+      _gaugeLongPrecondition.reset();
+      _gaugeLongSloppy.reset();
+      _gaugeLongPrecise.reset();
       break;
     case QUDA_SMEARED_LINKS:
-      if (gaugeSmeared) delete gaugeSmeared;
+      _gaugeSmeared.reset();
       break;
     default:
       errorQuda("Invalid gauge type %d", param->type);
   }
 
   // if not preserving then copy the gauge field passed in
-  cudaGaugeField *precise = NULL;
+  //cudaGaugeField *precise = NULL;
 
   // switch the parameters for creating the mirror precise cuda gauge field
   gauge_param.create = QUDA_NULL_FIELD_CREATE;
@@ -649,15 +676,14 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
 		       gauge_param.reconstruct == QUDA_RECONSTRUCT_NO ) ?
     QUDA_FLOAT2_GAUGE_ORDER : QUDA_FLOAT4_GAUGE_ORDER;
 
-  precise = new cudaGaugeField(gauge_param);
+  auto precise = std::make_shared<cudaGaugeField>(gauge_param);
 
   if (param->use_resident_gauge) {
-    if(gaugePrecise == NULL) errorQuda("No resident gauge field");
+    if(!_gaugePrecise) errorQuda("No resident gauge field");
     // copy rather than point at to ensure that the padded region is filled in
-    precise->copy(*gaugePrecise);
+    precise->copy(*_gaugePrecise);
     precise->exchangeGhost();
-    delete gaugePrecise;
-    gaugePrecise = NULL;
+    _gaugePrecise.reset();
     profileGauge.TPSTOP(QUDA_PROFILE_INIT);
   } else {
     profileGauge.TPSTOP(QUDA_PROFILE_INIT);
@@ -670,11 +696,12 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
 
   // for gaugeSmeared we are interested only in the precise version
   if (param->type == QUDA_SMEARED_LINKS) {
-    gaugeSmeared = createExtendedGauge(*precise, R, profileGauge);
+    _gaugeSmeared = std::unique_ptr<cudaGaugeField> (createExtendedGauge(*precise, R, profileGauge));
+    gaugeSmeared = _gaugeSmeared.get();
 
     profileGauge.TPSTART(QUDA_PROFILE_FREE);
-    delete precise;
-    delete in;
+    // delete precise;
+    // delete in;
     profileGauge.TPSTOP(QUDA_PROFILE_FREE);
 
     profileGauge.TPSTOP(QUDA_PROFILE_TOTAL);
@@ -690,10 +717,10 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
   gauge_param.order = (gauge_param.precision == QUDA_DOUBLE_PRECISION ||
       gauge_param.reconstruct == QUDA_RECONSTRUCT_NO ) ?
     QUDA_FLOAT2_GAUGE_ORDER : QUDA_FLOAT4_GAUGE_ORDER;
-  cudaGaugeField *sloppy = NULL;
+  std::shared_ptr<cudaGaugeField> sloppy;
   if (param->cuda_prec != param->cuda_prec_sloppy ||
       param->reconstruct != param->reconstruct_sloppy) {
-    sloppy = new cudaGaugeField(gauge_param);
+    sloppy = std::make_shared<cudaGaugeField>(gauge_param);
     sloppy->copy(*precise);
     param->gaugeGiB += sloppy->GBytes();
   } else {
@@ -706,10 +733,10 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
   gauge_param.order = (gauge_param.precision == QUDA_DOUBLE_PRECISION ||
       gauge_param.reconstruct == QUDA_RECONSTRUCT_NO ) ?
     QUDA_FLOAT2_GAUGE_ORDER : QUDA_FLOAT4_GAUGE_ORDER;
-  cudaGaugeField *precondition = NULL;
+  std::shared_ptr<cudaGaugeField> precondition;
   if (param->cuda_prec_sloppy != param->cuda_prec_precondition ||
       param->reconstruct_sloppy != param->reconstruct_precondition) {
-    precondition = new cudaGaugeField(gauge_param);
+    precondition = std::make_shared<cudaGaugeField>(gauge_param);
     precondition->copy(*sloppy);
     param->gaugeGiB += precondition->GBytes();
   } else {
@@ -719,57 +746,79 @@ void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param)
   profileGauge.TPSTOP(QUDA_PROFILE_COMPUTE);
 
   // create an extended preconditioning field
-  cudaGaugeField* extended = nullptr;
+  std::shared_ptr<cudaGaugeField> extended;
   if (param->overlap){
     int R[4]; // domain-overlap widths in different directions
     for (int i=0; i<4; ++i) R[i] = param->overlap*commDimPartitioned(i);
-    extended = createExtendedGauge(*precondition, R, profileGauge);
+    extended = std::make_shared<cudaGaugeField>(createExtendedGauge(*precondition, R, profileGauge));
   }
 
   switch (param->type) {
     case QUDA_WILSON_LINKS:
-      gaugePrecise = precise;
-      gaugeSloppy = sloppy;
-      gaugePrecondition = precondition;
+      _gaugePrecise = precise;
+      _gaugeSloppy = sloppy;
+      _gaugePrecondition = precondition;
 
-      if(param->overlap) gaugeExtended = extended;
+
+
+      if(param->overlap) _gaugeExtended = extended;
       break;
     case QUDA_ASQTAD_FAT_LINKS:
-      gaugeFatPrecise = precise;
-      gaugeFatSloppy = sloppy;
-      gaugeFatPrecondition = precondition;
+      _gaugeFatPrecise = precise;
+      _gaugeFatSloppy = sloppy;
+      _gaugeFatPrecondition = precondition;
 
       if(param->overlap){
-        if(gaugeFatExtended) errorQuda("Extended gauge fat field already allocated");
-	gaugeFatExtended = extended;
+        if(_gaugeFatExtended) errorQuda("Extended gauge fat field already allocated");
+	_gaugeFatExtended = extended;
       }
       break;
     case QUDA_ASQTAD_LONG_LINKS:
-      gaugeLongPrecise = precise;
-      gaugeLongSloppy = sloppy;
-      gaugeLongPrecondition = precondition;
+      _gaugeLongPrecise = precise;
+      _gaugeLongSloppy = sloppy;
+      _gaugeLongPrecondition = precondition;
 
       if(param->overlap){
-        if(gaugeLongExtended) errorQuda("Extended gauge long field already allocated");
-   	gaugeLongExtended = extended;
+        if(_gaugeLongExtended) errorQuda("Extended gauge long field already allocated");
+   	_gaugeLongExtended = extended;
       }
       break;
     default:
       errorQuda("Invalid gauge type %d", param->type);
   }
 
+// attach non-owning pointers
+  gaugePrecise = _gaugePrecise.get();
+  gaugeSloppy = _gaugeSloppy.get();
+  gaugePrecondition = _gaugePrecondition.get();
+  gaugeExtended = _gaugeExtended.get();
+
+//TODO: check how to handle that correctly as the raw fat pointers are only references to the raw non-fat pointers
+  gaugeFatPrecise = _gaugeFatPrecise.get();
+  gaugeFatSloppy = _gaugeFatSloppy.get();
+  gaugeFatPrecondition = _gaugeFatPrecondition.get();
+  gaugeFatExtended = _gaugeFatExtended.get();
+
+  gaugeLongPrecise = _gaugeLongPrecise.get();
+  gaugeLongSloppy = _gaugeLongSloppy.get();
+  gaugeLongPrecondition = _gaugeLongPrecondition.get();
+  gaugeLongExtended = _gaugeLongExtended.get();
+
+
+
   profileGauge.TPSTART(QUDA_PROFILE_FREE);
-  delete in;
+  
   profileGauge.TPSTOP(QUDA_PROFILE_FREE);
 
-  if (extendedGaugeResident) {
+  if (_extendedGaugeResident) {
     // updated the resident gauge field if needed
-    const int *R_ = extendedGaugeResident->R();
+    const int *R_ = _extendedGaugeResident->R();
     const int R[] = { R_[0], R_[1], R_[2], R_[3] };
-    QudaReconstructType recon = extendedGaugeResident->Reconstruct();
-    delete extendedGaugeResident;
+    QudaReconstructType recon = _extendedGaugeResident->Reconstruct();
+    
 
-    extendedGaugeResident = createExtendedGauge(*gaugePrecise, R, profileGauge, false, recon);
+    _extendedGaugeResident.reset(createExtendedGauge(*_gaugePrecise, R, profileGauge, false, recon));
+    extendedGaugeResident = _extendedGaugeResident.get();
   }
 
   profileGauge.TPSTOP(QUDA_PROFILE_TOTAL);
@@ -1064,66 +1113,64 @@ void loadSloppyCloverQuda(QudaPrecision prec_sloppy, QudaPrecision prec_precondi
 void freeGaugeQuda(void)
 {
   if (!initialized) errorQuda("QUDA not initialized");
-  if (gaugeSloppy != gaugePrecondition && gaugePrecondition) delete gaugePrecondition;
-  if (gaugePrecise != gaugeSloppy && gaugeSloppy) delete gaugeSloppy;
-  if (gaugePrecise) delete gaugePrecise;
-  if (gaugeExtended) delete gaugeExtended;
+  _gaugePrecondition.reset();
+  _gaugeSloppy.reset();
+  _gaugePrecise.reset();
+  _gaugeExtended.reset();
 
-  gaugePrecondition = NULL;
-  gaugeSloppy = NULL;
-  gaugePrecise = NULL;
-  gaugeExtended = NULL;
+  gaugePrecondition = nullptr;
+  gaugeSloppy = nullptr;
+  gaugePrecise = nullptr;
+  gaugeExtended = nullptr;
 
-  if (gaugeLongSloppy != gaugeLongPrecondition && gaugeLongPrecondition) delete gaugeLongPrecondition;
-  if (gaugeLongPrecise != gaugeLongSloppy && gaugeLongSloppy) delete gaugeLongSloppy;
-  if (gaugeLongPrecise) delete gaugeLongPrecise;
-  if (gaugeLongExtended) delete gaugeLongExtended;
+  _gaugeLongPrecondition.reset();
+  _gaugeLongSloppy.reset();
+  _gaugeLongPrecise.reset();
+  _gaugeLongExtended.reset();
 
-  gaugeLongPrecondition = NULL;
-  gaugeLongSloppy = NULL;
-  gaugeLongPrecise = NULL;
-  gaugeLongExtended = NULL;
+  gaugeLongPrecondition = nullptr;
+  gaugeLongSloppy = nullptr;
+  gaugeLongPrecise = nullptr;
+  gaugeLongExtended = nullptr;
 
-  if (gaugeFatSloppy != gaugeFatPrecondition && gaugeFatPrecondition) delete gaugeFatPrecondition;
-  if (gaugeFatPrecise != gaugeFatSloppy && gaugeFatSloppy) delete gaugeFatSloppy;
-  if (gaugeFatPrecise) delete gaugeFatPrecise;
+  _gaugeFatPrecondition.reset();
+  _gaugeFatSloppy.reset();
+  _gaugeFatPrecise.reset();
 
-  gaugeFatPrecondition = NULL;
-  gaugeFatSloppy = NULL;
-  gaugeFatPrecise = NULL;
-  gaugeFatExtended = NULL;
+  gaugeFatPrecondition = nullptr;
+  gaugeFatSloppy = nullptr;
+  gaugeFatPrecise = nullptr;
+  gaugeFatExtended = nullptr;
 
-  if (gaugeSmeared) delete gaugeSmeared;
+  _gaugeSmeared.reset();
 
-  gaugeSmeared = NULL;
+  gaugeSmeared = nullptr;
   // Need to merge extendedGaugeResident and gaugeFatPrecise/gaugePrecise
-  if (extendedGaugeResident) {
-    delete extendedGaugeResident;
-    extendedGaugeResident = NULL;
-  }
+  _extendedGaugeResident.reset();
+  extendedGaugeResident = nullptr;
 }
 
 // just free the sloppy fields used in mixed-precision solvers
 void freeSloppyGaugeQuda(void)
 {
   if (!initialized) errorQuda("QUDA not initialized");
-  if (gaugeSloppy != gaugePrecondition && gaugePrecondition) delete gaugePrecondition;
-  if (gaugePrecise != gaugeSloppy && gaugeSloppy) delete gaugeSloppy;
+  _gaugePrecondition.reset();
+  _gaugeSloppy.reset();
 
-  gaugePrecondition = NULL;
-  gaugeSloppy = NULL;
+  gaugePrecondition = nullptr;
+  gaugeSloppy = nullptr;
 
-  if (gaugeLongSloppy != gaugeLongPrecondition && gaugeLongPrecondition) delete gaugeLongPrecondition;
-  if (gaugeLongPrecise != gaugeLongSloppy && gaugeLongSloppy) delete gaugeLongSloppy;
+  _gaugeLongPrecondition.reset();
+  _gaugeLongSloppy.reset();
 
-  gaugeLongPrecondition = NULL;
-  gaugeLongSloppy = NULL;
+  gaugeLongPrecondition = nullptr;
+  gaugeLongSloppy = nullptr;
 
-  if (gaugeFatSloppy != gaugeFatPrecondition && gaugeFatPrecondition) delete gaugeFatPrecondition;
-  if (gaugeFatPrecise != gaugeFatSloppy && gaugeFatSloppy) delete gaugeFatSloppy;
+  _gaugeFatPrecondition.reset();
+  _gaugeFatSloppy.reset();
 
-  gaugeFatPrecondition = NULL;
-  gaugeFatSloppy = NULL;
+  gaugeFatPrecondition = nullptr;
+  gaugeFatSloppy = nullptr;
 }
 
 
