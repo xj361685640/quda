@@ -425,7 +425,7 @@ namespace quda {
 
     void init() {
 #if QDP_USE_CUDA_MANAGED_MEMORY
-  warningQuda("QDP-JIT with managed memory. Bypassing QDP pool allocator for QUDA")
+  warningQuda("QDP-JIT with managed memory. Bypassing QDP pool allocator for QUDA");
 #endif
       if (!pool_init) {
 	// device memory pool
