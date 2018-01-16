@@ -424,6 +424,9 @@ namespace quda {
     static bool pinned_memory_pool = true;
 
     void init() {
+#if QDP_USE_CUDA_MANAGED_MEMORY
+  warningQuda("QDP-JIT with managed memory. Bypassing QDP pool allocator for QUDA")
+#endif
       if (!pool_init) {
 	// device memory pool
 	char *enable_device_pool = getenv("QUDA_ENABLE_DEVICE_MEMORY_POOL");
