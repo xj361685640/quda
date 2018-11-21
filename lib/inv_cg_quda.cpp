@@ -288,7 +288,7 @@ namespace quda {
 
     const double u = param.precision_sloppy == 8 ? std::numeric_limits<double>::epsilon()/2. : ((param.precision_sloppy == 4) ? std::numeric_limits<float>::epsilon()/2. : pow(2.,-13));
     const double uhigh= param.precision == 8 ? std::numeric_limits<double>::epsilon()/2. : ((param.precision == 4) ? std::numeric_limits<float>::epsilon()/2. : pow(2.,-13));
-    const double deps=sqrt(u);
+     double deps=sqrt(u);
     constexpr double dfac = 1.1;
     double d_new =0 ;
     double d =0 ;
@@ -463,8 +463,8 @@ namespace quda {
         updateX = ( (d <= deps*sqrt(r2_old)) or (dfac * dinit > deps * r0Norm) ) and (d_new > deps*rNorm) and (d_new > dfac * dinit);
         updateR = 0;
         // if(updateX)
-          // printfQuda("new reliable update conditions (%i) d_n-1 < eps r2_old %e %e;\t dn > eps r_n %e %e;\t (dnew > 1.1 dinit %e %e)\n",
-        // updateX,d,deps*sqrt(r2_old),d_new,deps*rNorm,d_new,dinit);
+           printfQuda("new reliable update conditions (%i) d_n-1 < eps r2_old %e %e;\t dn > eps r_n %e %e;\t (dnew > 1.1 dinit %e %e)\n",
+        updateX,d,deps*sqrt(r2_old),d_new,deps*rNorm,d_new,dinit);
       }
       else{
         if (rNorm > maxrx) maxrx = rNorm;
@@ -528,8 +528,8 @@ namespace quda {
 	  pnorm = pnorm + alpha[j] * alpha[j]* (ppnorm);
 	  xnorm = sqrt(pnorm);
 	  d_new = d + u*rNorm + uhigh*Anorm * xnorm;
-	  if (steps_since_reliable==0 && getVerbosity() >= QUDA_DEBUG_VERBOSE)
-            printfQuda("New dnew: %e (r %e , y %e)\n",d_new,u*rNorm,uhigh*Anorm * sqrt(blas::norm2(y)) );
+	  // if (steps_since_reliable==0 && getVerbosity() >= QUDA_DEBUG_VERBOSE)
+            printfQuda("New dnew: %e (r %e , y %e)\n",d_new,u*rNorm,uhigh*Anorm * xnorm );
 	}
 	steps_since_reliable++;
 
@@ -557,12 +557,16 @@ namespace quda {
 
         // alternative reliable updates
         if(alternative_reliable){
-          dinit = uhigh*(sqrt(r2) + Anorm * sqrt(blas::norm2(y)));
+          dinit = u*sqrt(r2) + uhigh * Anorm * sqrt(blas::norm2(y));
           d = d_new;
           xnorm = 0;//sqrt(norm2(x));
           pnorm = 0;//pnorm + alpha * sqrt(norm2(p));
-          if (getVerbosity() >= QUDA_DEBUG_VERBOSE) printfQuda("New dinit: %e (r %e , y %e)\n",dinit,uhigh*sqrt(r2),uhigh*Anorm*sqrt(blas::norm2(y)));
-          d_new = dinit;
+          // if (getVerbosity() >= QUDA_DEBUG_VERBOSE) 
+
+          // deps = fmin(sqrt(u),sqrt(sqrt(r2)));
+            printfQuda("New dinit: %e (r %e , y %e)\tdeps %e\n",dinit,uhigh*sqrt(r2),uhigh*Anorm*sqrt(blas::norm2(y)), deps);
+          d_new = uhigh*(sqrt(r2) + Anorm * sqrt(blas::norm2(y)));
+
         }
         else{
           rNorm = sqrt(r2);
