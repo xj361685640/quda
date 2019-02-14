@@ -4,9 +4,7 @@ env:
   global:
   - LC_CTYPE=en_US.UTF-8
   - LANG=en_US.UTF-8
-matrix:
-  include:
-          -dist: xenial
+dist: xenial
 before_install:
 #  - brew install clang-format
   - mkdir bin
@@ -17,5 +15,6 @@ before_install:
   - tar -xzf swift-4.2.2-RELEASE-ubuntu16.04.tar.gz
   - export PATH="$(pwd)/swift-4.2.2-RELEASE-ubuntu16.04/usr/bin/:$PATH"
   - git clone --branch stable https://github.com/material-foundation/clang-format-ci.git
+  - swift --version
 script:
   - if [ -n "$TRAVIS_PULL_REQUEST_SLUG" ]; then ./clang-format-ci/check-pull-request.sh --api_token "$GITHUB_TOKEN" --repo "$TRAVIS_PULL_REQUEST_SLUG" --pr "$TRAVIS_PULL_REQUEST" --commit "$TRAVIS_PULL_REQUEST_SHA" --target_branch "$TRAVIS_BRANCH"; fi
