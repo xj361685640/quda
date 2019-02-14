@@ -469,10 +469,8 @@ namespace quda {
 			   const cudaColorSpinorField *x, const double &k,
 			   const int *commDim, TimeProfile &profile);
 
-
-  void ApplyDslashStaggered(ColorSpinorField &out, const ColorSpinorField &in, const GaugeField &U, const GaugeField &L,
-                            double a, const ColorSpinorField &x, int parity, bool dagger, bool improved,
-                            const int *comm_override, TimeProfile &profile) ;
+  void ApplyDslashStaggered(ColorSpinorField& out, const ColorSpinorField& in, const GaugeField& U, const GaugeField& L, double a, const ColorSpinorField& x,
+      int parity, bool dagger, bool improved, const int* comm_override, TimeProfile& profile);
 
   // improved staggered Dslash
   void improvedStaggeredDslashCuda(cudaColorSpinorField *out, const cudaGaugeField &fatGauge, const cudaGaugeField &longGauge,
