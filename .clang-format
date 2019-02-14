@@ -6,6 +6,7 @@ AllowShortCaseLabelsOnASingleLine : true
 AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: true
 BreakBeforeBraces: Linux
+ColumnLimit: 120
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 Cpp11BracedListStyle: true
 FixNamespaceComments: true
