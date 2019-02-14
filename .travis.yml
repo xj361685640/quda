@@ -1,21 +1,21 @@
-language: cpp
+language: objective-c
 sudo: false
 env:
   global:
   - LC_CTYPE=en_US.UTF-8
   - LANG=en_US.UTF-8
-dist: xenial
+osx_image: xcode10
 compiler: clang
 before_install:
-#  - brew install clang-format
+  - brew install clang-format
   - mkdir bin
   - curl -Ls "https://raw.githubusercontent.com/llvm-mirror/clang/c510fac5695e904b43d5bf0feee31cc9550f110e/tools/clang-format/git-clang-format" -o "bin/git-clang-format"
   - chmod +x bin/git-clang-format
   - export PATH="$(pwd)/bin:$PATH"
-  - curl -Ls "https://swift.org/builds/swift-4.2.2-release/ubuntu1604/swift-4.2.2-RELEASE/swift-4.2.2-RELEASE-ubuntu16.04.tar.gz" -o "swift-4.2.2-RELEASE-ubuntu16.04.tar.gz" 
-  - tar -xzf swift-4.2.2-RELEASE-ubuntu16.04.tar.gz
-  - export PATH="$(pwd)/swift-4.2.2-RELEASE-ubuntu16.04/usr/bin/:$PATH"
+    #  - curl -Ls "https://swift.org/builds/swift-4.2.2-release/ubuntu1604/swift-4.2.2-RELEASE/swift-4.2.2-RELEASE-ubuntu16.04.tar.gz" -o "swift-4.2.2-RELEASE-ubuntu16.04.tar.gz" 
+    #- tar -xzf swift-4.2.2-RELEASE-ubuntu16.04.tar.gz
+    #- export PATH="$(pwd)/swift-4.2.2-RELEASE-ubuntu16.04/usr/bin/:$PATH"
   - git clone --branch stable https://github.com/material-foundation/clang-format-ci.git
-  - swift --version
+  -# swift --version
 script:
   - if [ -n "$TRAVIS_PULL_REQUEST_SLUG" ]; then ./clang-format-ci/check-pull-request.sh --api_token "$GITHUB_TOKEN" --repo "$TRAVIS_PULL_REQUEST_SLUG" --pr "$TRAVIS_PULL_REQUEST" --commit "$TRAVIS_PULL_REQUEST_SHA" --target_branch "$TRAVIS_BRANCH"; fi
