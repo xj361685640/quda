@@ -7,7 +7,7 @@ namespace quda {
   template <typename Float, int nColor, QudaReconstructType reconstruct_>
   struct TwistedMassArg : WilsonArg<Float,nColor,reconstruct_> {
     typedef typename mapper<Float>::type real;
-    real a; /** xpay scale facotor */
+    real a; /** xpay scale factor */
     real b; /** this is the twist factor */
 
     TwistedMassArg(ColorSpinorField &out, const ColorSpinorField &in, const GaugeField &U,

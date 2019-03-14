@@ -48,11 +48,21 @@ namespace quda {
 
     void apply(const cudaStream_t &stream) {
       TuneParam tp = tuneLaunch(*this, getTuning(), getVerbosity());
+      tp.grid.x += arg.pack_blocks;
       Dslash<Float>::setParam(arg);
+
+      if (arg.pack_threads && arg.kernel_type == INTERIOR_KERNEL) arg.in.resetGhost(in, this->packBuffer);
+
       Dslash<Float>::template instantiate<WilsonLaunch,nDim,nColor>(tp, arg, stream);
     }
 
-    TuneKey tuneKey() const { return TuneKey(in.VolString(), typeid(*this).name(), Dslash<Float>::aux[arg.kernel_type]); }
+    TuneKey tuneKey() const {
+      if (arg.pack_blocks > 0 && arg.kernel_type == INTERIOR_KERNEL) {
+        return TuneKey(in.VolString(), typeid(*this).name(), Dslash<Float>::aux_pack);
+      } else {
+        return TuneKey(in.VolString(), typeid(*this).name(), Dslash<Float>::aux[arg.kernel_type]);
+      }
+    }
   };
 
   template <typename Float, int nColor, QudaReconstructType recon>

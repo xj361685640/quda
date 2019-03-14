@@ -6,14 +6,16 @@
 #include <color_spinor.h>
 #include <dslash_helper.cuh>
 #include <index_helper.cuh>
+#include <kernels/dslash_pack.cuh> // for the packing kernel
 
 namespace quda {
 
   /**
      @brief Parameter structure for driving the Wilson operator
    */
-  template <typename Float, int nColor, QudaReconstructType reconstruct_>
+  template <typename Float, int nColor_, QudaReconstructType reconstruct_>
   struct WilsonArg : DslashArg<Float> {
+    static constexpr int nColor = nColor_;
     static constexpr int nSpin = 4;
     static constexpr bool spin_project = true;
     static constexpr bool spinor_direct_load = false; // false means texture load
@@ -177,15 +179,27 @@ namespace quda {
   template <typename Float, int nDim, int nColor, int nParity, bool dagger, bool xpay, KernelType kernel_type, typename Arg>
   __global__ void wilsonGPU(Arg arg)
   {
-    int x_cb = blockIdx.x*blockDim.x + threadIdx.x;
-    if (x_cb >= arg.threads) return;
+    const int dslash_block_offset = (kernel_type == INTERIOR_KERNEL ? arg.pack_blocks : 0);
 
-    // for full fields set parity from z thread index else use arg setting
-    int parity = nParity == 2 ? blockDim.z*blockIdx.z + threadIdx.z : arg.parity;
+    if (kernel_type == INTERIOR_KERNEL && blockIdx.x < arg.pack_blocks) {
+      // first few blocks do packing kernel
+      // for full fields set parity from z thread index else use arg setting
+      int parity = nParity == 2 ? blockDim.z*blockIdx.z + threadIdx.z : arg.parity;
 
-    switch(parity) {
-    case 0: wilson<Float,nDim,nColor,nParity,dagger,xpay,kernel_type>(arg, x_cb, 0, 0); break;
-    case 1: wilson<Float,nDim,nColor,nParity,dagger,xpay,kernel_type>(arg, x_cb, 0, 1); break;
+      packShmem<dagger,0,QUDA_4D_PC>(arg, 1-parity); // flip parity since pack is on input
+    } else { // do dslash
+
+      int x_cb = (blockIdx.x-dslash_block_offset)*blockDim.x + threadIdx.x;
+      if (x_cb >= arg.threads) return;
+
+      // for full fields set parity from z thread index else use arg setting
+      int parity = nParity == 2 ? blockDim.z*blockIdx.z + threadIdx.z : arg.parity;
+
+      switch(parity) {
+      case 0: wilson<Float,nDim,nColor,nParity,dagger,xpay,kernel_type>(arg, x_cb, 0, 0); break;
+      case 1: wilson<Float,nDim,nColor,nParity,dagger,xpay,kernel_type>(arg, x_cb, 0, 1); break;
+      }
+
     }
 
   }

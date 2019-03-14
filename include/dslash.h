@@ -22,6 +22,11 @@ namespace quda {
     char aux_base[TuneKey::aux_n];
     char aux[8][TuneKey::aux_n];
 
+    char aux_pack[TuneKey::aux_n];
+
+    // pointers to ghost buffers we are packing to
+    void *packBuffer[2*QUDA_MAX_DIM];
+
 #ifdef JITIFY
     // local copy of the static program pointer - this is a work
     // around for issues with the static program pointer when
@@ -244,6 +249,39 @@ namespace quda {
       create_jitify_program(src);
       program_ = program;
 #endif
+    }
+
+    void setPack(bool pack, MemoryLocation location)
+    {
+      arg.setPack(pack);
+      if (!pack) return;
+
+      for (int dim=0; dim<4; dim++) {
+        for (int dir=0; dir<2; dir++) {
+          if ( (location & Remote) && comm_peer2peer_enabled(dir,dim) ) { // pack to p2p remote
+            packBuffer[2*dim+dir] = static_cast<char*>(in.ghost_remote_send_buffer_d[in.bufferIndex][dim][dir]) + in.Precision()*in.GhostOffset(dim,1-dir);
+          } else if ( location & Host && !comm_peer2peer_enabled(dir,dim) ) { // pack to cpu memory
+            packBuffer[2*dim+dir] = in.my_face_dim_dir_hd[in.bufferIndex][dim][dir];
+          } else { // pack to local gpu memory
+            packBuffer[2*dim+dir] = in.my_face_dim_dir_d[in.bufferIndex][dim][dir];
+          }
+        }
+      }
+
+      // set the tuning string for the fused interior + packer kernel
+      strcpy(aux_pack, Dslash<Float>::aux[arg.kernel_type]);
+      strcat(aux_pack, ",fused_pack");
+
+      // label the locations we are packing to
+      // location label is nonp2p-p2p
+      switch ((int)location) {
+      case Device|Remote: strcat(aux_pack,",device-remote"); break;
+      case   Host|Remote: strcat(aux_pack,  ",host-remote"); break;
+      case        Device: strcat(aux_pack,",device-device"); break;
+      case          Host: strcat(aux_pack, comm_peer2peer_enabled_global() ? ",host-device" : ",host-host"); break;
+      default: errorQuda("Unknown pack target location %d\n", location);
+      }
+
     }
 
     int Nface() const { return 2*arg.nFace; } // factor of 2 is for forwards/backwards (convention used in dslash policy)

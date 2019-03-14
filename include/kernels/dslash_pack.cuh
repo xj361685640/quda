@@ -30,9 +30,9 @@ namespace quda {
 
     const DslashConstant dc; // pre-computed dslash constants for optimized indexing
 
-    real a; // preconditioned twisted-mass scaling parameter
-    real b; // preconditioned twisted-mass chiral twist factor
-    real c; // preconditioned twisted-mass flavor twist factor
+    real twist_a; // preconditioned twisted-mass scaling parameter
+    real twist_b; // preconditioned twisted-mass chiral twist factor
+    real twist_c; // preconditioned twisted-mass flavor twist factor
     int twist; // whether we are doing preconditioned twisted-mass or not (1 - singlet, 2 - doublet)
 
     int_fastdiv threads;
@@ -47,7 +47,7 @@ namespace quda {
     int sites_per_block;
 
     PackArg(void **ghost, const ColorSpinorField &in, int nFace, bool dagger, int parity,
-            int threads, double a, double b, double c) :
+            int threads, double twist_a, double twist_b, double twist_c) :
         in(in, nFace, nullptr, nullptr, reinterpret_cast<Float **>(ghost)),
         nFace(nFace),
         dagger(dagger),
@@ -56,10 +56,10 @@ namespace quda {
         threads(threads),
         pc_type(in.PCType()),
         dc(in.getDslashConstant()),
-        a(a),
-        b(b),
-        c(c),
-        twist((a != 0.0 && b != 0.0) ? (c != 0.0 ? 2 : 1) : 0)
+        twist_a(twist_a),
+        twist_b(twist_b),
+        twist_c(twist_c),
+        twist((twist_a != 0.0 && twist_b != 0.0) ? (twist_c != 0.0 ? 2 : 1) : 0)
     {
       if (!in.isNative()) errorQuda("Unsupported field order colorspinor=%d\n", in.FieldOrder());
 
@@ -115,25 +115,24 @@ namespace quda {
       constexpr int proj_dir = dagger ? +1 : -1;
       Vector f = arg.in(idx+s*arg.dc.volume_4d_cb, spinor_parity);
       if (twist==1) {
-        f = arg.a * (f + arg.b*f.igamma(4));
+        f = arg.twist_a * (f + arg.twist_b*f.igamma(4));
       } else if (twist==2) {
         Vector f1 = arg.in(idx+(1-s)*arg.dc.volume_4d_cb, spinor_parity); // load other flavor
-        if (s==0) f = arg.a * (f + arg.b*f.igamma(4) + arg.c*f1);
-        else      f = arg.a * (f - arg.b*f.igamma(4) + arg.c*f1);
+        if (s==0) f = arg.twist_a * (f + arg.twist_b*f.igamma(4) + arg.twist_c*f1);
+        else      f = arg.twist_a * (f - arg.twist_b*f.igamma(4) + arg.twist_c*f1);
       }
       in.Ghost(dim, 0, ghost_idx+s*arg.dc.ghostFaceCB[dim], spinor_parity) = f.project(dim, proj_dir);
-
     } else { // forwards
 
       int idx = indexFromFaceIndex<nDim,pc,dim,nFace,1>(ghost_idx, parity, arg);
       constexpr int proj_dir = dagger ? -1 : +1;
       Vector f = arg.in(idx+s*arg.dc.volume_4d_cb, spinor_parity);
       if (twist==1) {
-        f = arg.a * (f + arg.b*f.igamma(4));
+        f = arg.twist_a * (f + arg.twist_b*f.igamma(4));
       } else if (twist==2) {
         Vector f1 = arg.in(idx+(1-s)*arg.dc.volume_4d_cb, spinor_parity); // load other flavor
-        if (s==0) f = arg.a * (f + arg.b*f.igamma(4) + arg.c*f1);
-        else      f = arg.a * (f - arg.b*f.igamma(4) + arg.c*f1);
+        if (s==0) f = arg.twist_a * (f + arg.twist_b*f.igamma(4) + arg.twist_c*f1);
+        else      f = arg.twist_a * (f - arg.twist_b*f.igamma(4) + arg.twist_c*f1);
       }
       in.Ghost(dim, 1, ghost_idx+s*arg.dc.ghostFaceCB[dim], spinor_parity) = f.project(dim, proj_dir);
     }
@@ -210,7 +209,7 @@ namespace quda {
   }
 
   template <bool dagger, int twist, QudaPCType pc, typename Arg>
-  __global__ void packShmemKernel(Arg arg)
+  __device__ void packShmem(Arg &arg, int parity)
   {
     // (active_dims * 2 + dir) * blocks_per_dir + local_block_idx
     int local_block_idx = blockIdx.x % arg.blocks_per_dir;
@@ -228,9 +227,6 @@ namespace quda {
 
     int s = blockDim.y*blockIdx.y + threadIdx.y;
     if (s >= arg.dc.Ls) return;
-
-    // this is the parity used for load/store, but we use arg.parity for index mapping
-    int parity = (arg.nParity == 2) ? blockDim.z*blockIdx.z + threadIdx.z : arg.parity;
 
     switch(dim) {
     case 0:
@@ -266,6 +262,14 @@ namespace quda {
       }
       break;
     }
+  }
+
+  template <bool dagger, int twist, QudaPCType pc, typename Arg>
+  __global__ void packShmemKernel(Arg arg) {
+    // this is the parity used for load/store, but we use arg.parity for index mapping
+    int parity = (arg.nParity == 2) ? blockDim.z*blockIdx.z + threadIdx.z : arg.parity;
+
+    packShmem<dagger,twist,pc>(arg, parity);
   }
 
   template <typename Arg>
