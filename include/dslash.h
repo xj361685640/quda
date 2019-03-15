@@ -362,6 +362,7 @@ namespace quda {
       int ghost_flops = (num_mv_multiply * mv_flops + 2*in.Ncolor()*in.Nspin());
       int xpay_flops = 2 * 2 * in.Ncolor() * in.Nspin(); // multiply and add per real component
       int num_dir = 2 * 4; // set to 4-d since we take care of 5-d fermions in derived classes where necessary
+      int pack_flops = (in.Nspin() == 4 ? 2 * in.Nspin()/2 * in.Ncolor() : 0); // only flops if spin projecting
 
       long long flops_ = 0;
 
@@ -382,10 +383,13 @@ namespace quda {
           break;
         }
       case INTERIOR_KERNEL:
+        if (arg.pack_threads) {
+          flops_ += pack_flops * arg.nParity * in.getDslashConstant().Ls * arg.pack_threads;
+        }
       case KERNEL_POLICY:
         {
           long long sites = in.Volume();
-          flops_ = (num_dir*(in.Nspin()/4)*in.Ncolor()*in.Nspin() +   // spin project (=0 for staggered)
+          flops_ += (num_dir*(in.Nspin()/4)*in.Ncolor()*in.Nspin() +   // spin project (=0 for staggered)
                     num_dir*num_mv_multiply*mv_flops +                // SU(3) matrix-vector multiplies
                     ((num_dir-1)*2*in.Ncolor()*in.Nspin())) * sites;  // accumulation
           if (arg.xpay) flops_ += xpay_flops * sites;
@@ -411,6 +415,8 @@ namespace quda {
       int proj_spinor_bytes = in.Nspin() == 4 ? spinor_bytes / 2 : spinor_bytes;
       int ghost_bytes = (proj_spinor_bytes + gauge_bytes) + 2*spinor_bytes; // 2 since we have to load the partial
       int num_dir = 2 * 4; // set to 4-d since we take care of 5-d fermions in derived classes where necessary
+      int pack_bytes = 2 * ( (in.Nspin() == 4 ? in.Nspin()/2 : in.Nspin()) + in.Nspin() ) * in.Ncolor() * in.Precision();
+      if (isFixed) pack_bytes += 2*sizeof(float); // 2 is from input and output
 
       long long bytes_ = 0;
 
@@ -424,14 +430,17 @@ namespace quda {
       case EXTERIOR_KERNEL_ALL:
         {
           long long ghost_sites = 2 * (in.GhostFace()[0]+in.GhostFace()[1]+in.GhostFace()[2]+in.GhostFace()[3]);
-          bytes_ = ghost_bytes * ghost_sites;
+          bytes_ += ghost_bytes * ghost_sites;
           break;
         }
       case INTERIOR_KERNEL:
+        if (arg.pack_threads) {
+          bytes_ += pack_bytes * arg.nParity * in.getDslashConstant().Ls * arg.pack_threads;
+        }
       case KERNEL_POLICY:
         {
           long long sites = in.Volume();
-          bytes_ = (num_dir*gauge_bytes + ((num_dir-2)*spinor_bytes + 2*proj_spinor_bytes) + spinor_bytes)*sites;
+          bytes_ += (num_dir*gauge_bytes + ((num_dir-2)*spinor_bytes + 2*proj_spinor_bytes) + spinor_bytes)*sites;
           if (arg.xpay) bytes_ += spinor_bytes;
 
           if (arg.kernel_type == KERNEL_POLICY) break;

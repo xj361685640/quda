@@ -298,6 +298,7 @@ namespace quda {
         // set packing parameters
         // for now we set one block per direction / dimension
         int d = 0;
+        pack_threads = 0;
         for (int i=0; i<4; i++) {
           if (!commDim[i]) continue;
           if ( i==3 && !getKernelPackT() ) continue;
