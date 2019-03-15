@@ -101,6 +101,35 @@ namespace quda {
       return maxDynamicSharedBytesPerBlock();
     }
 
+    bool advanceAux(TuneParam &param) const
+    {
+      if (arg.pack_threads && arg.kernel_type == INTERIOR_KERNEL) {
+        // if doing the fused kernel we tune how many blocks to use for communication
+        constexpr int max_blocks_per_dir = 4;
+        if (param.aux.x+1 <= max_blocks_per_dir) {
+          param.aux.x++;
+          return true;
+        } else {
+          param.aux.x = 1;
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    void initTuneParam(TuneParam &param) const
+    {
+      TunableVectorYZ::initTuneParam(param);
+      if (arg.pack_threads && arg.kernel_type == INTERIOR_KERNEL) param.aux.x = 1; // packing blocks per direction
+    }
+
+    void defaultTuneParam(TuneParam &param) const
+    {
+      TunableVectorYZ::defaultTuneParam(param);
+      if (arg.pack_threads && arg.kernel_type == INTERIOR_KERNEL) param.aux.x = 1; // packing blocks per direction
+    }
+
   public:
 
     template <typename T, typename Arg>

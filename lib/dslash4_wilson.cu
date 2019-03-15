@@ -48,10 +48,14 @@ namespace quda {
 
     void apply(const cudaStream_t &stream) {
       TuneParam tp = tuneLaunch(*this, getTuning(), getVerbosity());
-      tp.grid.x += arg.pack_blocks;
       Dslash<Float>::setParam(arg);
 
-      if (arg.pack_threads && arg.kernel_type == INTERIOR_KERNEL) arg.in.resetGhost(in, this->packBuffer);
+      if (arg.pack_threads && arg.kernel_type == INTERIOR_KERNEL) {
+        arg.blocks_per_dir = tp.aux.x;
+        arg.setPack(true); // need to recompute for updated block_per_dir
+        arg.in.resetGhost(in, this->packBuffer);
+        tp.grid.x += arg.pack_blocks;
+      }
 
       Dslash<Float>::template instantiate<WilsonLaunch,nDim,nColor>(tp, arg, stream);
     }
